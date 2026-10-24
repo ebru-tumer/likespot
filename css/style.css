@@ -273,6 +273,8 @@ input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border: 0; bord
 .or::before, .or::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
 .playlist-row { display: flex; gap: 6px; margin-top: 6px; }
 .playlist-row .input { margin: 0; min-width: 0; font-size: 12px; }
+.about { margin: 22px 0 0; font-size: 11px; color: var(--dim); line-height: 1.6; }
+.about a { color: var(--muted); }
 .dev { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .dev summary { cursor: pointer; font-weight: 600; }
 .dev p { margin: 12px 0 0; }
