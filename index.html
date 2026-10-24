@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LikeSpot</title>
+  <meta name="description" content="Spotify'da beğendiğin şarkılardan 0.1 saniyelik kliplerle tahmin oyunu.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%231ed760'/><path d='M38 30v40l32-20z' fill='%23111'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo-dot"></span>LikeSpot</div>
+    <div class="stats" id="stats" hidden>
+      <div class="stat"><span id="stat-score">0</span><small>puan</small></div>
+      <div class="stat"><span id="stat-streak">0</span><small>seri</small></div>
+      <div class="stat"><span id="stat-best">0</span><small>en iyi</small></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Bağlantı ekranı -->
+    <section id="screen-setup" class="screen card" hidden>
+      <h1>Beğendiğin şarkıları ne kadar iyi tanıyorsun?</h1>
+      <p class="lead">Spotify hesabını bağla, beğenilen şarkılarından rastgele biri 0.1 saniyelik bir klip olarak çalsın. Bilemezsen klip uzar.</p>
+
+      <ol class="steps">
+        <li>
+          <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a>'da bir uygulama oluştur
+          (API olarak <b>Web API</b> ve <b>Web Playback SDK</b>'yı seç).
+        </li>
+        <li>
+          Uygulamanın <b>Redirect URI</b> alanına tam olarak şunu ekle:
+          <div class="copy-row">
+            <code id="redirect-uri"></code>
+            <button class="btn ghost small" id="copy-redirect" type="button">Kopyala</button>
+          </div>
+        </li>
+        <li>
+          <b>Client ID</b>'yi buraya yapıştır:
+          <input id="client-id" class="input" placeholder="ör. 3f1c9a…" autocomplete="off" spellcheck="false">
+        </li>
+      </ol>
+
+      <div class="actions">
+        <button class="btn primary" id="btn-login" type="button">Spotify ile bağlan</button>
+        <button class="btn ghost" id="btn-demo" type="button">Bağlanmadan demo oyna</button>
+      </div>
+      <p class="error" id="setup-error" hidden></p>
+    </section>
+
+    <!-- Yükleme ekranı -->
+    <section id="screen-loading" class="screen card center" hidden>
+      <div class="spinner"></div>
+      <p id="loading-text">Beğenilen şarkılar yükleniyor…</p>
+      <div class="progress"><div id="loading-bar"></div></div>
+    </section>
+
+    <!-- Oyun ekranı -->
+    <section id="screen-game" class="screen" hidden>
+      <nav class="difficulty" id="difficulty" role="tablist" aria-label="Zorluk"></nav>
+
+      <div class="options">
+        <label>Soru
+          <select id="opt-question">
+            <option value="title">Şarkının adı</option>
+            <option value="artist">Sanatçı</option>
+            <option value="mixed">Karışık</option>
+          </select>
+        </label>
+        <label>Dönem
+          <select id="opt-era">
+            <option value="all">Hepsi</option>
+            <option value="classic">Klasik (2000 öncesi)</option>
+            <option value="2000s">2000'ler</option>
+            <option value="2010s">2010'lar</option>
+            <option value="2020s">2020'ler</option>
+          </select>
+        </label>
+        <label>Ses
+          <select id="opt-source">
+            <option value="preview">Önizleme (hassas klip)</option>
+            <option value="spotify">Spotify (tam şarkı, Premium)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="card game">
+        <p class="question" id="question">Bu şarkının adı ne?</p>
+        <p class="diff-hint" id="diff-hint"></p>
+
+        <div class="ladder" id="ladder"></div>
+
+        <div class="player">
+          <button class="play-btn" id="btn-play" type="button" aria-label="Klibi çal">
+            <svg viewBox="0 0 24 24" class="icon-play"><path d="M8 5v14l11-7z"/></svg>
+            <svg viewBox="0 0 24 24" class="icon-stop"><path d="M7 7h10v10H7z"/></svg>
+            <span class="btn-spinner"></span>
+          </button>
+          <div class="clip-info">
+            <span id="clip-length">0.1s</span>
+            <small id="clip-note">Çalmak için bas · boşluk tuşu</small>
+          </div>
+        </div>
+        <div class="clip-progress"><div id="clip-bar"></div></div>
+
+        <ul class="guesses" id="guesses"></ul>
+
+        <form class="answer" id="answer-type" autocomplete="off">
+          <div class="combo">
+            <input id="guess-input" class="input" placeholder="Şarkının adını yaz…" spellcheck="false">
+            <ul class="suggestions" id="suggestions" role="listbox" hidden></ul>
+          </div>
+          <div class="answer-actions">
+            <button class="btn ghost" id="btn-skip" type="button">Atla</button>
+            <button class="btn primary" id="btn-guess" type="submit">Tahmin et</button>
+          </div>
+        </form>
+
+        <div class="answer" id="answer-choice" hidden>
+          <div class="choices" id="choices"></div>
+          <div class="answer-actions">
+            <button class="btn ghost" id="btn-skip-choice" type="button">Atla</button>
+          </div>
+        </div>
+
+        <div class="reveal" id="reveal" hidden>
+          <img id="reveal-img" alt="">
+          <div class="reveal-text">
+            <p class="verdict" id="verdict"></p>
+            <h2 id="reveal-title"></h2>
+            <p id="reveal-artist"></p>
+            <p class="muted" id="reveal-album"></p>
+          </div>
+          <div class="reveal-actions">
+            <button class="btn ghost" id="btn-listen" type="button">Biraz daha dinle</button>
+            <a class="btn ghost" id="btn-open" target="_blank" rel="noopener">Spotify'da aç</a>
+            <button class="btn primary" id="btn-next" type="button">Sonraki şarkı ⏎</button>
+          </div>
+        </div>
+      </div>
+
+      <footer class="libbar">
+        <span id="lib-info"></span>
+        <span class="libbar-actions">
+          <button class="link" id="btn-refresh" type="button">Listeyi yenile</button>
+          <button class="link" id="btn-logout" type="button">Çıkış</button>
+        </span>
+      </footer>
+      <p class="error" id="game-error" hidden></p>
+    </section>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
