@@ -65,6 +65,9 @@ svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; s
   align-items: center;
 }
 
+/* Giriş ve yükleme ekranlarında yan paneller yok; içerik ortalanır. */
+.layout:has(#side-left[hidden]) { grid-template-columns: minmax(0, 1fr); }
+
 /* ---------- Yan paneller ---------- */
 .side { width: 160px; display: flex; flex-direction: column; gap: 16px; }
 .side-left { justify-self: end; }
@@ -234,6 +237,32 @@ input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border: 0; bord
 }
 .screen.panel { width: min(480px, calc(100vw - 32px)); align-self: center; }
 .center-text { text-align: center; }
+
+.providers { display: grid; gap: 10px; }
+.provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+}
+.provider:hover { filter: brightness(1.1); }
+.provider:active { transform: scale(0.98); }
+.provider svg { width: 18px; height: 18px; }
+.provider.spotify { background: #1ed760; color: #04170a; }
+.provider.youtube { background: #ff0033; color: #fff; }
+.demo-link { display: block; margin: 16px auto 0; font-size: 12px; }
+.dev { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.dev summary { cursor: pointer; font-weight: 600; }
+.dev p { margin: 12px 0 0; }
+.dev label { display: block; margin-top: 12px; }
 
 h1 { font-size: 20px; line-height: 1.25; margin: 0 0 8px; }
 h2 { margin: 0; font-size: 15px; line-height: 1.3; }

@@ -1,5 +1,6 @@
 import * as auth from './auth.js';
 import { loadCachedLibrary, fetchLikedSongs, clearLibrary } from './library.js';
+import * as yt from './youtube.js';
 import { PreviewPlayer, SpotifyPlayer } from './players.js';
 import {
   DIFFICULTIES, Picker, isCorrect, points, makeChoices, buildIndex, suggest, loadStats, saveStats,
@@ -9,6 +10,7 @@ import { tagLanguages, fetchArtistGenres } from './language.js';
 
 const $ = id => document.getElementById(id);
 const KEY_SETTINGS = 'ls.settings';
+const KEY_PROVIDER = 'ls.provider';
 
 const preview = new PreviewPlayer();
 const spotify = new SpotifyPlayer();
@@ -21,7 +23,7 @@ try { Object.assign(settings, JSON.parse(localStorage.getItem(KEY_SETTINGS))); }
 
 const state = {
   tracks: [],
-  demo: false,
+  provider: 'demo', // 'spotify' | 'youtube' | 'demo'
   round: null,
   queued: null,
   playing: false,
@@ -47,7 +49,7 @@ function saveSettings() {
 }
 
 function player() {
-  return settings.source === 'spotify' && !state.demo ? spotify : preview;
+  return settings.source === 'spotify' && state.provider === 'spotify' ? spotify : preview;
 }
 
 // ---------- Kurulum ----------
@@ -55,6 +57,9 @@ function player() {
 function initSetup() {
   $('redirect-uri').textContent = auth.redirectUri();
   $('client-id').value = auth.getClientId();
+  $('google-client-id').value = yt.getGoogleClientId();
+  $('client-id').onchange = () => auth.setClientId($('client-id').value);
+  $('google-client-id').onchange = () => yt.setGoogleClientId($('google-client-id').value);
   $('copy-redirect').onclick = async () => {
     await navigator.clipboard.writeText(auth.redirectUri());
     $('copy-redirect').textContent = 'Kopyalandı';
@@ -63,18 +68,47 @@ function initSetup() {
     $('setup-error').hidden = true;
     try {
       auth.setClientId($('client-id').value);
+      localStorage.setItem(KEY_PROVIDER, 'spotify');
       await auth.login();
     } catch (err) {
       showError('setup-error', err);
     }
   };
-  $('btn-demo').onclick = () => startGame(DEMO_TRACKS, true);
+  $('btn-youtube').onclick = async () => {
+    $('setup-error').hidden = true;
+    try {
+      yt.setGoogleClientId($('google-client-id').value);
+      await yt.login();
+      localStorage.setItem(KEY_PROVIDER, 'youtube');
+      const lib = await loadYoutubeLibrary();
+      startGame(lib.tracks, 'youtube');
+    } catch (err) {
+      show('setup');
+      showError('setup-error', err);
+    }
+  };
+  $('btn-demo').onclick = () => startGame(DEMO_TRACKS, 'demo');
+  yt.loadGoogle().catch(() => {});
+}
+
+async function loadYoutubeLibrary() {
+  show('loading');
+  $('loading-text').textContent = 'YouTube Music beğenileri yükleniyor…';
+  $('loading-bar').style.width = '0%';
+  const lib = await yt.fetchYoutubeLikes((scanned, total, songs) => {
+    $('loading-text').textContent = `YouTube Music beğenileri yükleniyor… ${scanned} / ${total} video, ${songs} şarkı`;
+    $('loading-bar').style.width = `${total ? Math.min(100, (scanned / total) * 100) : 100}%`;
+  });
+  if (!lib.tracks.length) {
+    throw new Error('Beğenilen videolar arasında şarkı bulunamadı. YouTube Music\'te birkaç şarkıyı beğenip tekrar dene.');
+  }
+  return lib;
 }
 
 async function loadLibrary(force = false) {
   const cached = !force && loadCachedLibrary();
   // Eski önbellekte sanatçı kimlikleri yok; dil tespiti için yeniden çekilir.
-  if (cached?.tracks?.length && cached.tracks[0].artistIds) return cached;
+  if (cached?.tracks?.length && cached.provider !== 'youtube' && cached.tracks[0].artistIds) return cached;
   show('loading');
   $('loading-text').textContent = 'Beğenilen şarkılar yükleniyor…';
   $('loading-bar').style.width = '0%';
@@ -86,9 +120,10 @@ async function loadLibrary(force = false) {
 
 // ---------- Oyun ----------
 
-function startGame(tracks, demo) {
+function startGame(tracks, provider) {
+  const demo = provider === 'demo';
   state.tracks = tracks;
-  state.demo = demo;
+  state.provider = provider;
   state.index = { title: buildIndex('title', tracks), artist: buildIndex('artist', tracks) };
   tagLanguages(tracks);
   show('game');
@@ -96,7 +131,7 @@ function startGame(tracks, demo) {
   $('btn-refresh').hidden = demo;
   $('btn-logout').textContent = demo ? 'Demodan çık' : 'Çıkış';
   renderLibInfo();
-  if (!demo) {
+  if (provider === 'spotify') {
     fetchArtistGenres(tracks, (done, total, genres) => {
       tagLanguages(tracks, genres);
       renderLibInfo(done < total ? `dil taranıyor ${done}/${total}` : '');
@@ -111,7 +146,9 @@ function startGame(tracks, demo) {
 function renderLibInfo(note = '') {
   const t = state.tracks;
   const tr = t.filter(x => x.lang === 'tr').length;
-  const base = state.demo ? `Demo · ${t.length} popüler şarkı` : `${t.length.toLocaleString('tr')} beğenilen şarkı`;
+  const base = state.provider === 'demo'
+    ? `Demo · ${t.length} popüler şarkı`
+    : `${t.length.toLocaleString('tr')} beğenilen şarkı${state.provider === 'youtube' ? ' (YouTube Music)' : ''}`;
   $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, note].filter(Boolean).join(' · ');
 }
 
@@ -154,11 +191,12 @@ function renderOptions() {
   $('opt-lang').value = settings.lang;
   for (const b of $('qtabs').children) b.classList.toggle('active', b.dataset.q === settings.question);
 
-  const source = state.demo ? 'preview' : settings.source;
+  const canSpotify = state.provider === 'spotify';
+  const source = canSpotify ? settings.source : 'preview';
   for (const b of $('source-buttons').children) {
     b.classList.toggle('active', b.dataset.source === source);
-    b.disabled = state.demo && b.dataset.source === 'spotify';
-    b.title = b.disabled ? 'Demo modunda yalnızca önizleme kullanılır' : '';
+    b.disabled = !canSpotify && b.dataset.source === 'spotify';
+    b.title = b.disabled ? 'Sadece Spotify ile bağlanınca kullanılabilir' : '';
   }
 
   const noSearch = !!DIFFICULTIES[settings.difficulty].noSearch;
@@ -394,7 +432,8 @@ function renderReveal() {
   $('reveal-album').textContent = [t.album, t.year].filter(Boolean).join(' · ');
   $('btn-open').href = t.url || '#';
   $('btn-open').hidden = !t.url;
-  $('btn-open').textContent = t.url.includes('spotify') ? "Spotify'da aç" : "Apple Music'te aç";
+  $('btn-open').textContent = t.url.includes('spotify') ? "Spotify'da aç"
+    : t.url.includes('youtube') ? "YouTube Music'te aç" : "Apple Music'te aç";
   $('btn-next').focus();
 }
 
@@ -622,8 +661,14 @@ function bindGame() {
 
   $('btn-refresh').onclick = async () => {
     try {
+      if (state.provider === 'youtube') {
+        if (!yt.hasValidToken()) await yt.login();
+        const lib = await loadYoutubeLibrary();
+        startGame(lib.tracks, 'youtube');
+        return;
+      }
       const lib = await loadLibrary(true);
-      startGame(lib.tracks, false);
+      startGame(lib.tracks, 'spotify');
     } catch (err) {
       show('game');
       showError('game-error', err);
@@ -631,9 +676,11 @@ function bindGame() {
   };
   $('btn-logout').onclick = () => {
     stopAudio();
-    if (!state.demo) {
+    if (state.provider !== 'demo') {
       auth.logout();
+      yt.logout();
       clearLibrary();
+      localStorage.removeItem(KEY_PROVIDER);
     }
     show('setup');
   };
@@ -643,11 +690,17 @@ async function main() {
   initSetup();
   bindGame();
   try {
-    await auth.handleRedirect();
+    if (await auth.handleRedirect()) localStorage.setItem(KEY_PROVIDER, 'spotify');
+    const provider = localStorage.getItem(KEY_PROVIDER) || (auth.isLoggedIn() ? 'spotify' : '');
+    if (provider === 'youtube') {
+      const cached = loadCachedLibrary();
+      if (cached?.provider === 'youtube' && cached.tracks.length) return startGame(cached.tracks, 'youtube');
+      return show('setup');
+    }
     if (!auth.isLoggedIn()) return show('setup');
     const lib = await loadLibrary();
     if (!lib.tracks.length) throw new Error('Spotify\'da beğenilen şarkın yok gibi görünüyor.');
-    startGame(lib.tracks, false);
+    startGame(lib.tracks, 'spotify');
   } catch (err) {
     show('setup');
     showError('setup-error', err);

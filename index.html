@@ -75,29 +75,35 @@
       <!-- Bağlantı ekranı -->
       <section id="screen-setup" class="screen panel" hidden>
         <h1>Beğendiğin şarkıları ne kadar iyi tanıyorsun?</h1>
-        <p class="lead">Spotify hesabını bağla. Beğenilen şarkılarından biri 0.1 saniyelik bir klip olarak çalar. Bilemezsen klip uzar.</p>
-        <ol class="steps">
-          <li>
-            <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a>'da bir uygulama oluştur
-            (API olarak <b>Web API</b> ve <b>Web Playback SDK</b>'yı seç).
-          </li>
-          <li>
-            Uygulamanın <b>Redirect URI</b> alanına tam olarak şunu ekle:
-            <div class="copy-row">
-              <code id="redirect-uri"></code>
-              <button class="btn ghost small" id="copy-redirect" type="button">Kopyala</button>
-            </div>
-          </li>
-          <li>
-            <b>Client ID</b>'yi buraya yapıştır:
-            <input id="client-id" class="input" placeholder="ör. 3f1c9a…" autocomplete="off" spellcheck="false">
-          </li>
-        </ol>
-        <div class="actions">
-          <button class="btn primary" id="btn-login" type="button">Spotify ile bağlan</button>
-          <button class="btn ghost" id="btn-demo" type="button">Bağlanmadan demo oyna</button>
+        <p class="lead">Müzik hesabını bağla. Beğendiğin şarkılardan biri 0.1 saniyelik bir klip olarak çalar. Bilemezsen klip uzar.</p>
+
+        <div class="providers">
+          <button class="provider spotify" id="btn-login" type="button">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M7 9.5c3.5-1 7-.6 10 1M7.5 12.5c3-.8 6-.4 8.5.9M8 15.4c2.4-.6 4.7-.3 6.7.7"/></svg>
+            Spotify ile bağlan
+          </button>
+          <button class="provider youtube" id="btn-youtube" type="button">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M10 8.5v7l6-3.5z" fill="currentColor"/></svg>
+            YouTube Music ile bağlan
+          </button>
         </div>
+        <button class="link demo-link" id="btn-demo" type="button">Bağlanmadan demo oyna →</button>
         <p class="error" id="setup-error" hidden></p>
+
+        <details class="dev">
+          <summary>Geliştirici ayarları</summary>
+          <p>Spotify uygulamasının <b>Redirect URI</b> listesinde bu adres olmalı:</p>
+          <div class="copy-row">
+            <code id="redirect-uri"></code>
+            <button class="btn ghost small" id="copy-redirect" type="button">Kopyala</button>
+          </div>
+          <label>Spotify Client ID
+            <input id="client-id" class="input" autocomplete="off" spellcheck="false">
+          </label>
+          <label>Google Client ID (YouTube Music)
+            <input id="google-client-id" class="input" placeholder="….apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+          </label>
+        </details>
       </section>
 
       <!-- Yükleme ekranı -->

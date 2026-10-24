@@ -1,4 +1,5 @@
 // Spotify Authorization Code + PKCE akışı (sunucu gerektirmez).
+import { SPOTIFY_CLIENT_ID } from './config.js';
 
 const SCOPES = [
   'user-library-read',
@@ -16,11 +17,13 @@ export function redirectUri() {
 }
 
 export function getClientId() {
-  return localStorage.getItem(KEY_CLIENT) || '';
+  return localStorage.getItem(KEY_CLIENT) || SPOTIFY_CLIENT_ID;
 }
 
 export function setClientId(id) {
-  localStorage.setItem(KEY_CLIENT, id.trim());
+  id = id.trim();
+  if (id && id !== SPOTIFY_CLIENT_ID) localStorage.setItem(KEY_CLIENT, id);
+  else localStorage.removeItem(KEY_CLIENT);
 }
 
 function readToken() {

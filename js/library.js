@@ -59,7 +59,12 @@ export async function fetchLikedSongs(onProgress) {
     onProgress?.(tracks.length, page.total);
     next = page.next;
   }
-  const library = { fetchedAt: Date.now(), tracks };
+  return saveLibrary('spotify', tracks);
+}
+
+// provider: 'spotify' | 'youtube'
+export function saveLibrary(provider, tracks) {
+  const library = { provider, fetchedAt: Date.now(), tracks };
   try {
     localStorage.setItem(KEY_LIBRARY, JSON.stringify(library));
   } catch {
