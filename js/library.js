@@ -43,12 +43,32 @@ function slimTrack({ added_at, track }) {
   };
 }
 
-export function loadCachedLibrary() {
-  try { return JSON.parse(localStorage.getItem(KEY_LIBRARY)); } catch { return null; }
+// Her kaynağın (spotify, youtube, playlist) listesi ayrı saklanır; aralarında geçiş yapılabilir.
+const keyFor = provider => `${KEY_LIBRARY}.${provider}`;
+
+// Eski sürümde tek bir liste vardı; onu kendi kaynağının anahtarına taşır.
+function migrate() {
+  const old = localStorage.getItem(KEY_LIBRARY);
+  if (!old) return;
+  try {
+    const lib = JSON.parse(old);
+    const key = keyFor(lib.provider || 'spotify');
+    if (!localStorage.getItem(key)) localStorage.setItem(key, old);
+  } catch { /* bozuk kayıt */ }
+  localStorage.removeItem(KEY_LIBRARY);
 }
 
-export function clearLibrary() {
-  localStorage.removeItem(KEY_LIBRARY);
+export function loadCachedLibrary(provider) {
+  migrate();
+  try { return JSON.parse(localStorage.getItem(keyFor(provider))); } catch { return null; }
+}
+
+export function hasLibrary(provider) {
+  return !!loadCachedLibrary(provider)?.tracks?.length;
+}
+
+export function clearLibrary(provider) {
+  localStorage.removeItem(keyFor(provider));
 }
 
 export async function fetchLikedSongs(onProgress) {
@@ -65,11 +85,11 @@ export async function fetchLikedSongs(onProgress) {
   return saveLibrary('spotify', tracks);
 }
 
-// provider: 'spotify' | 'youtube'
+// provider: 'spotify' | 'youtube' | 'playlist'
 export function saveLibrary(provider, tracks) {
   const library = { provider, fetchedAt: Date.now(), tracks };
   try {
-    localStorage.setItem(KEY_LIBRARY, JSON.stringify(library));
+    localStorage.setItem(keyFor(provider), JSON.stringify(library));
   } catch {
     // Çok büyük kütüphanelerde depolama dolabilir; oyun yine de çalışır.
   }
