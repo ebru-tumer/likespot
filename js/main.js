@@ -19,7 +19,7 @@ const spotify = new SpotifyPlayer();
 const picker = new Picker();
 
 const settings = {
-  difficulty: 'expert', question: 'title', era: 'all', lang: 'all', source: 'preview', search: true, volume: 90,
+  difficulty: 'expert', question: 'title', era: 'all', lang: 'all', source: 'preview', volume: 90,
 };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(KEY_SETTINGS))); } catch { /* varsayılanlar */ }
 
@@ -249,7 +249,6 @@ function renderOptions() {
     b.hidden = !canSpotify && b.dataset.source === 'spotify';
   }
 
-  $('opt-search').checked = settings.search;
   $('opt-volume').value = settings.volume;
   applyVolume();
 }
@@ -645,7 +644,7 @@ function onInput() {
   clearTimeout(suggestTimer);
   const text = $('guess-input').value;
   const minChars = DIFFICULTIES[settings.difficulty].minChars || 1;
-  if (!settings.search || text.replace(/\s/g, '').length < minChars) return hideSuggestions();
+  if (text.replace(/\s/g, '').length < minChars) return hideSuggestions();
   const qtype = state.round?.qtype || 'title';
   const id = ++suggestId;
   suggestTimer = setTimeout(async () => {
@@ -696,11 +695,6 @@ function bindGame() {
   $('btn-reroll').onclick = newRound;
   $('btn-shuffle').onclick = newRound;
 
-  $('opt-search').onchange = () => {
-    settings.search = $('opt-search').checked;
-    saveSettings();
-    hideSuggestions();
-  };
   $('opt-volume').oninput = () => {
     settings.volume = Number($('opt-volume').value);
     saveSettings();
