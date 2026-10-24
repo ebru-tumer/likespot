@@ -185,27 +185,35 @@ export async function fetchPlaylist(playlistId, onProgress) {
     throw new Error('"Beğenilen müzikler" listesi gizli olduğu için okunamıyor. Herkese açık ya da liste dışı bir çalma listesinin linkini yapıştır.');
   }
   const tracks = [];
+  const seen = new Set();
   let scanned = 0;
   let pageToken = '';
-  do {
+  // YouTube Music'in otomatik listeleri (RDCLAK…) bazen hiç bitmeyen sayfa döndürür:
+  // yeni şarkı gelmeyen bir sayfada ya da 5000 öğede dururuz.
+  for (let page = 0; page < 100; page++) {
     const params = new URLSearchParams({ part: 'snippet', playlistId, maxResults: '50', key: GOOGLE_API_KEY });
     if (pageToken) params.set('pageToken', pageToken);
     const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?${params}`);
     if (res.status === 404) throw new Error('Çalma listesi bulunamadı. Listenin "Herkese açık" ya da "Liste dışı" olduğundan emin ol.');
     if (!res.ok) throw new Error(`YouTube API hatası ${res.status}: ${await res.text()}`);
     const data = await res.json();
+    let added = 0;
     for (const item of data.items || []) {
       const s = item.snippet || {};
       const videoId = s.resourceId?.videoId;
-      if (!videoId || /^(Deleted|Private) video$/.test(s.title)) continue;
+      if (!videoId || seen.has(videoId) || /^(Deleted|Private) video$/.test(s.title)) continue;
+      seen.add(videoId);
+      added++;
       // Çalma listesindeki her şeyi müzik say; kanal adı yükleyen kanaldır.
       const t = toTrack({ videoId, title: s.title, channel: s.videoOwnerChannelTitle, isMusic: true, thumbs: s.thumbnails });
       if (t) tracks.push(t);
     }
     scanned += (data.items || []).length;
-    onProgress?.(scanned, data.pageInfo?.totalResults || scanned, tracks.length);
+    const total = Math.max(scanned, data.pageInfo?.totalResults || 0);
+    onProgress?.(scanned, total, tracks.length);
     pageToken = data.nextPageToken;
-  } while (pageToken);
+    if (!pageToken || !added) break;
+  }
   const lib = saveLibrary('playlist', tracks);
   lib.playlistId = playlistId;
   localStorage.setItem('ls.playlistId', playlistId);
