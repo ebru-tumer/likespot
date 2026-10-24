@@ -1,5 +1,6 @@
 // Beğenilen şarkıları Spotify'dan çeker ve tarayıcıda önbelleğe alır.
 import { getAccessToken, refresh } from './auth.js';
+import { normalize, cleanTitle } from './players.js';
 
 const API = 'https://api.spotify.com/v1';
 const KEY_LIBRARY = 'ls.library';
@@ -65,6 +66,14 @@ export function loadCachedLibrary(provider) {
 
 export function hasLibrary(provider) {
   return !!loadCachedLibrary(provider)?.tracks?.length;
+}
+
+// Spotify ve YouTube Music listelerini birleştirir; iki tarafta da olan şarkı bir kez alınır
+// (Spotify'daki kaydı tercih edilir, çünkü albüm ve yıl bilgisi daha zengin).
+export function mergeLibraries(spotifyTracks, youtubeTracks) {
+  const key = t => `${normalize(cleanTitle(t.name))}|${normalize(t.artists[0])}`;
+  const seen = new Set(spotifyTracks.map(key));
+  return [...spotifyTracks, ...youtubeTracks.filter(t => !seen.has(key(t)))];
 }
 
 export function clearLibrary(provider) {
