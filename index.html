@@ -257,6 +257,22 @@
     </aside>
   </div>
 
+  <script>
+    // GitHub Pages dosyaları 10 dk önbelleğe aldığı için güncelleme sonrası eski sürüm görünebiliyor.
+    // version.txt değiştiyse dosyaları önbelleği atlayarak yeniden indirip sayfayı bir kez yeniler.
+    (async () => {
+      try {
+        const v = (await (await fetch('version.txt', { cache: 'no-store' })).text()).trim();
+        const seen = localStorage.getItem('ls.version');
+        localStorage.setItem('ls.version', v);
+        if (!seen || seen === v) return;
+        const files = ['./', 'index.html', 'css/style.css', 'auth', 'catalog', 'config', 'demo', 'game',
+          'language', 'library', 'main', 'players', 'youtube'].map(f => f.includes('.') || f === './' ? f : `js/${f}.js`);
+        await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
+        location.reload();
+      } catch { /* sürüm kontrolü yapılamazsa sayfa olduğu gibi çalışır */ }
+    })();
+  </script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
