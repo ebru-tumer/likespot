@@ -265,7 +265,14 @@
         const v = (await (await fetch('version.txt', { cache: 'no-store' })).text()).trim();
         const seen = localStorage.getItem('ls.version');
         localStorage.setItem('ls.version', v);
-        if (!seen || seen === v) return;
+        if (seen === v) return;
+        if (!seen) {
+          // İlk kez kontrol ediliyor: dosyalar önbellekten geldiyse eski olabilir, yoksa yenilemeye gerek yok.
+          await new Promise(r => document.readyState === 'complete' ? r() : addEventListener('load', r));
+          const cached = performance.getEntriesByType('resource')
+            .some(e => /\/js\/.+\.js/.test(e.name) && e.transferSize === 0 && e.decodedBodySize > 0);
+          if (!cached) return;
+        }
         const files = ['./', 'index.html', 'css/style.css', 'auth', 'catalog', 'config', 'demo', 'game',
           'language', 'library', 'main', 'players', 'youtube'].map(f => f.includes('.') || f === './' ? f : `js/${f}.js`);
         await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
