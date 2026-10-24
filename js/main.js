@@ -174,7 +174,9 @@ function renderLibInfo(note = '') {
   const tr = t.filter(x => x.lang === 'tr').length;
   const base = state.provider === 'demo'
     ? `Demo · ${t.length} popüler şarkı`
-    : `${t.length.toLocaleString('tr')} beğenilen şarkı${{ youtube: ' (YouTube Music)', playlist: ' (çalma listesi)' }[state.provider] || ''}`;
+    : state.provider === 'playlist'
+      ? `Çalma listesi · ${t.length.toLocaleString('tr')} şarkı`
+      : `${t.length.toLocaleString('tr')} beğenilen şarkı${state.provider === 'youtube' ? ' (YouTube Music)' : ''}`;
   $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, note].filter(Boolean).join(' · ');
 }
 
