@@ -8,6 +8,7 @@ import {
 import { DEMO_TRACKS } from './demo.js';
 import { tagLanguages, fetchArtistGenres } from './language.js';
 import { searchCatalog } from './catalog.js';
+import { tagPopularity, fetchPopularity } from './popularity.js';
 
 const $ = id => document.getElementById(id);
 const KEY_SETTINGS = 'ls.settings';
@@ -161,16 +162,25 @@ function startGame(tracks, provider) {
   if (provider === 'spotify') {
     fetchArtistGenres(tracks, (done, total, genres) => {
       tagLanguages(tracks, genres);
-      renderLibInfo(done < total ? `dil taranıyor ${done}/${total}` : '');
+      notes.lang = done < total ? `dil taranıyor ${done}/${total}` : '';
+      renderLibInfo();
     });
   }
+  tagPopularity(tracks);
+  fetchPopularity(tracks, (done, total) => {
+    if (state.tracks !== tracks) return;
+    notes.pop = done < total ? `popülerlik taranıyor ${done}/${total}` : '';
+    renderLibInfo();
+  });
 
   renderStats();
   renderOptions();
   newRound();
 }
 
-function renderLibInfo(note = '') {
+const notes = { lang: '', pop: '' };
+
+function renderLibInfo() {
   const t = state.tracks;
   const tr = t.filter(x => x.lang === 'tr').length;
   const base = state.provider === 'demo'
@@ -178,7 +188,8 @@ function renderLibInfo(note = '') {
     : state.provider === 'playlist'
       ? `Çalma listesi · ${t.length.toLocaleString('tr')} şarkı`
       : `${t.length.toLocaleString('tr')} beğenilen şarkı${state.provider === 'youtube' ? ' (YouTube Music)' : ''}`;
-  $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, note].filter(Boolean).join(' · ');
+  $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, notes.lang, notes.pop]
+    .filter(Boolean).join(' · ');
 }
 
 // Bilinen şarkıdan sonra bir üst zorluğa geçilir; İmkânsız'dan sonra Kolay'a dönülür.
@@ -194,6 +205,7 @@ function setDifficulty(key) {
   if (key === settings.difficulty) return;
   settings.difficulty = key;
   saveSettings();
+  state.queued = null;
   renderOptions();
   newRound();
 }
@@ -260,12 +272,17 @@ function setBusy(busy) {
   $('btn-play').disabled = busy;
 }
 
+// Zorluğun sırası (0 = Kolay) aynı zamanda şarkının popülerlik dilimidir.
+function tier() {
+  return Object.keys(DIFFICULTIES).indexOf(settings.difficulty);
+}
+
 // Ön izlemesi olmayan şarkıları atlayarak oynanabilir bir şarkı bulur.
 async function pickPlayable() {
   for (let i = 0; i < 12; i++) {
     let track = state.queued;
     state.queued = null;
-    if (!track) track = picker.next(state.tracks, settings.era, settings.lang);
+    if (!track) track = picker.next(state.tracks, settings.era, settings.lang, tier());
     if (!track) return null;
     if (player() !== preview) return track;
     const loaded = await preview.load(track);
@@ -288,7 +305,7 @@ function enrich(track, match) {
 
 function queueNext() {
   if (player() !== preview) return;
-  const next = picker.next(state.tracks, settings.era, settings.lang);
+  const next = picker.next(state.tracks, settings.era, settings.lang, tier());
   if (!next) return;
   state.queued = next;
   preview.load(next);

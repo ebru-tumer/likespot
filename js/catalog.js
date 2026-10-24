@@ -10,7 +10,7 @@ const MIN_ARTIST_FANS = 10_000;
 const cache = new Map();
 let counter = 0;
 
-function jsonp(url) {
+export function jsonp(url) {
   return new Promise((resolve, reject) => {
     const cb = `__deezer${++counter}`;
     const script = document.createElement('script');
@@ -46,12 +46,9 @@ export async function searchCatalog(question, text) {
       .filter(a => (a.nb_fan || 0) >= MIN_ARTIST_FANS)
       .map(a => ({ label: a.name, sub: '', value: a.name, search: normalize(a.name) }));
   } else {
-    // Hem genel arama hem de sanatçı araması: "50 cent" yazınca 50 Cent'in şarkıları da gelsin.
-    const [general, byArtist] = await Promise.all([
-      jsonp(`https://api.deezer.com/search?q=${enc}&limit=15`),
-      jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(`artist:"${q}"`)}&limit=15`).catch(() => ({})),
-    ]);
-    items = [...(general.data || []), ...(byArtist.data || [])]
+    // Genel arama sanatçı adını da kapsar: "50 cent" yazınca 50 Cent'in şarkıları gelir.
+    const general = await jsonp(`https://api.deezer.com/search?q=${enc}&limit=25`);
+    items = (general.data || [])
       .filter(t => (t.rank || 0) >= MIN_TRACK_RANK)
       .map(songItem);
   }

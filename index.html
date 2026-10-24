@@ -274,7 +274,7 @@
           if (!cached) return;
         }
         const files = ['./', 'index.html', 'css/style.css', 'auth', 'catalog', 'config', 'demo', 'game',
-          'language', 'library', 'main', 'players', 'youtube'].map(f => f.includes('.') || f === './' ? f : `js/${f}.js`);
+          'language', 'library', 'main', 'players', 'popularity', 'youtube'].map(f => f.includes('.') || f === './' ? f : `js/${f}.js`);
         await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
         location.reload();
       } catch { /* sürüm kontrolü yapılamazsa sayfa olduğu gibi çalışır */ }
