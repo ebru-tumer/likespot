@@ -3,15 +3,15 @@ import { normalize, cleanTitle } from './players.js';
 
 export const DIFFICULTIES = {
   easy:       { label: 'Kolay',    clips: [2, 4, 8, 15, 25],     mode: 'choice', offset: 'start',  mult: 1,
-                hint: '4 şık · 2 saniyeden başlar' },
+                color: '#22c55e', on: '#06210f', hint: '4 şık · 2 saniyeden başlar' },
   medium:     { label: 'Orta',     clips: [1, 2, 4, 8, 15],      mode: 'type',   offset: 'start',  mult: 2,
-                hint: 'Yazarak cevapla · 1 saniyeden başlar' },
+                color: '#facc15', on: '#2a2104', hint: 'Yazarak cevapla · 1 saniyeden başlar' },
   hard:       { label: 'Zor',      clips: [0.5, 1, 2, 8, 15],    mode: 'type',   offset: 'start',  mult: 3,
-                hint: 'Yazarak cevapla · 0.5 saniyeden başlar' },
+                color: '#fb923c', on: '#2b1406', hint: 'Yazarak cevapla · 0.5 saniyeden başlar' },
   expert:     { label: 'Uzman',    clips: [0.1, 0.5, 2, 8, 15],  mode: 'type',   offset: 'random', mult: 4,
-                hint: '0.1 saniye · şarkının rastgele bir yerinden' },
+                color: '#f87171', on: '#2b0b0b', hint: '0.1 saniye · şarkının rastgele bir yerinden' },
   impossible: { label: 'İmkânsız', clips: [0.1, 0.2, 0.5, 1, 2], mode: 'type',   offset: 'random', mult: 5,
-                hint: 'En fazla 2 saniye · rastgele yerden' },
+                color: '#a855f7', on: '#ffffff', hint: 'En fazla 2 saniye · rastgele yerden' },
 };
 
 export const ERAS = {

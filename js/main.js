@@ -13,7 +13,9 @@ const preview = new PreviewPlayer();
 const spotify = new SpotifyPlayer();
 const picker = new Picker();
 
-const settings = { difficulty: 'expert', question: 'title', era: 'all', source: 'preview' };
+const settings = {
+  difficulty: 'expert', question: 'title', era: 'all', source: 'preview', search: true, volume: 90,
+};
 try { Object.assign(settings, JSON.parse(localStorage.getItem(KEY_SETTINGS))); } catch { /* varsayılanlar */ }
 
 const state = {
@@ -30,7 +32,7 @@ const state = {
 
 function show(screen) {
   for (const s of ['setup', 'loading', 'game']) $(`screen-${s}`).hidden = s !== screen;
-  $('stats').hidden = screen !== 'game';
+  $('side-left').hidden = $('side-right').hidden = screen !== 'game';
 }
 
 function showError(el, err) {
@@ -88,39 +90,70 @@ function startGame(tracks, demo) {
   state.index = { title: buildIndex('title', tracks), artist: buildIndex('artist', tracks) };
   show('game');
 
-  $('opt-source').disabled = demo;
-  if (demo) $('opt-source').value = 'preview';
   $('btn-refresh').hidden = demo;
   $('btn-logout').textContent = demo ? 'Demodan çık' : 'Çıkış';
   $('lib-info').textContent = demo
-    ? `Demo modu · ${tracks.length} popüler şarkı`
+    ? `Demo · ${tracks.length} popüler şarkı`
     : `${tracks.length.toLocaleString('tr')} beğenilen şarkı`;
 
   renderStats();
-  renderDifficulty();
+  renderOptions();
   newRound();
 }
 
-function renderDifficulty() {
-  const nav = $('difficulty');
-  nav.innerHTML = '';
+function setDifficulty(key) {
+  if (key === settings.difficulty) return;
+  settings.difficulty = key;
+  saveSettings();
+  renderOptions();
+  newRound();
+}
+
+function renderOptions() {
+  const pills = $('difficulty');
+  const list = $('difficulty-list');
+  pills.innerHTML = '';
+  list.innerHTML = '';
   for (const [key, d] of Object.entries(DIFFICULTIES)) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.role = 'tab';
-    b.textContent = d.label;
-    b.className = key === settings.difficulty ? 'active' : '';
-    b.setAttribute('aria-selected', key === settings.difficulty);
-    b.onclick = () => {
-      if (key === settings.difficulty) return;
-      settings.difficulty = key;
-      saveSettings();
-      renderDifficulty();
-      newRound();
-    };
-    nav.appendChild(b);
+    const active = key === settings.difficulty;
+    for (const box of [pills, list]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = d.label;
+      b.className = active ? 'active' : '';
+      b.title = d.hint;
+      b.style.setProperty('--c', d.color);
+      b.style.setProperty('--on', d.on);
+      if (box === pills) {
+        b.role = 'tab';
+        b.setAttribute('aria-selected', active);
+      }
+      b.onclick = () => setDifficulty(key);
+      box.appendChild(b);
+    }
   }
-  $('diff-hint').textContent = DIFFICULTIES[settings.difficulty].hint;
+
+  $('opt-question').value = settings.question;
+  $('opt-era').value = settings.era;
+  for (const b of $('qtabs').children) b.classList.toggle('active', b.dataset.q === settings.question);
+
+  const source = state.demo ? 'preview' : settings.source;
+  for (const b of $('source-buttons').children) {
+    b.classList.toggle('active', b.dataset.source === source);
+    b.disabled = state.demo && b.dataset.source === 'spotify';
+    b.title = b.disabled ? 'Demo modunda yalnızca önizleme kullanılır' : '';
+  }
+
+  $('opt-search').checked = settings.search;
+  $('opt-volume').value = settings.volume;
+  applyVolume();
+}
+
+function applyVolume() {
+  const v = settings.volume / 100;
+  preview.volume = v;
+  spotify.volume = v;
+  $('opt-volume').style.setProperty('--fill', `${settings.volume}%`);
 }
 
 function renderStats() {
@@ -192,7 +225,7 @@ async function newRound() {
   setBusy(false);
   if (!track) {
     $('clip-note').textContent = 'Çalınabilir şarkı bulunamadı.';
-    showError('game-error', new Error('Bu filtrelerle önizlemesi olan şarkı bulunamadı. Dönemi "Hepsi" yapmayı veya ses kaynağını değiştirmeyi dene.'));
+    showError('game-error', new Error('Bu filtrelerle önizlemesi olan şarkı bulunamadı. Dönemi "Tüm dönemler" yapmayı veya ses kaynağını değiştirmeyi dene.'));
     return;
   }
 
@@ -220,7 +253,23 @@ function currentClip() {
 }
 
 function fmt(sec) {
-  return `${String(sec).replace('.', ',')} sn`;
+  return `${sec}s`;
+}
+
+// Kısa kliplerin de görünmesi için zaman çizelgesi karekök ölçeğinde.
+function timelinePos(sec) {
+  const clips = DIFFICULTIES[settings.difficulty].clips;
+  return Math.sqrt(sec / clips[clips.length - 1]) * 100;
+}
+
+function renderTimeline() {
+  const r = state.round;
+  const clips = DIFFICULTIES[settings.difficulty].clips;
+  const sec = r?.done ? clips[clips.length - 1] : currentClip();
+  const pos = timelinePos(sec);
+  $('tl-unlocked').style.width = `${pos}%`;
+  $('tl-marker').style.left = `${pos}%`;
+  $('tl-label').textContent = fmt(sec);
 }
 
 function renderRound() {
@@ -229,14 +278,14 @@ function renderRound() {
   const qtype = r?.qtype || (settings.question === 'artist' ? 'artist' : 'title');
 
   $('question').textContent = qtype === 'artist' ? 'Bu şarkıyı kim söylüyor?' : 'Bu şarkının adı ne?';
-  $('guess-input').placeholder = qtype === 'artist' ? 'Sanatçının adını yaz…' : 'Şarkının adını yaz…';
+  $('guess-input').placeholder = qtype === 'artist' ? 'Sanatçıyı bil' : 'Şarkıyı bil';
 
-  // Klip merdiveni
+  // Sağ paneldeki klip çipleri
   const ladder = $('ladder');
   ladder.innerHTML = '';
   d.clips.forEach((c, i) => {
     const el = document.createElement('div');
-    el.className = 'rung';
+    el.className = 'chip';
     if (r) {
       if (r.done && r.won && i === r.step) el.classList.add('won');
       else if (i < r.step || (r.done && !r.won)) el.classList.add('used');
@@ -246,19 +295,17 @@ function renderRound() {
     ladder.appendChild(el);
   });
 
+  renderTimeline();
   $('clip-length').textContent = fmt(r?.done ? 15 : currentClip());
-  if (r) $('clip-note').textContent = r.done ? 'Şarkıdan biraz daha dinle' : 'Çalmak için bas · boşluk tuşu';
+  if (r) $('clip-note').textContent = r.done ? 'Şarkıdan biraz daha dinle' : `${d.hint} · boşluk tuşu çalar`;
 
   // Tahmin listesi
   const list = $('guesses');
   list.innerHTML = '';
-  for (let i = 0; i < d.clips.length; i++) {
-    const g = r?.guesses[i];
+  for (const [i, g] of (r?.guesses || []).entries()) {
     const li = document.createElement('li');
-    if (g) {
-      li.className = g.ok ? 'ok' : g.skipped ? 'skipped' : 'wrong';
-      li.textContent = g.skipped ? `Atlandı (${fmt(d.clips[i])})` : g.text;
-    }
+    li.className = g.ok ? 'ok' : g.skipped ? 'skipped' : 'wrong';
+    li.textContent = g.skipped ? `Atlandı (${fmt(d.clips[i])})` : g.text;
     list.appendChild(li);
   }
 
@@ -323,7 +370,12 @@ function animateBar(seconds) {
   bar.style.width = '0%';
   void bar.offsetWidth;
   bar.style.transition = `width ${seconds}s linear`;
-  bar.style.width = '100%';
+  bar.style.width = `${timelinePos(Math.min(seconds, maxClip()))}%`;
+}
+
+function maxClip() {
+  const clips = DIFFICULTIES[settings.difficulty].clips;
+  return clips[clips.length - 1];
 }
 
 function stopAudio() {
@@ -361,7 +413,7 @@ async function playClip(seconds) {
   } catch (err) {
     setBusy(false);
     showError('game-error', p === spotify
-      ? new Error(`Spotify ile çalınamadı: ${err.message}. "Ses" ayarını Önizleme yapmayı dene.`)
+      ? new Error(`Spotify ile çalınamadı: ${err.message}. Sağdaki "Ses" ayarından önizlemeye geçmeyi dene.`)
       : err);
   } finally {
     if (state.round === r) {
@@ -448,6 +500,7 @@ function renderSuggestions() {
 }
 
 function onInput() {
+  if (!settings.search) return hideSuggestions();
   const qtype = state.round?.qtype || 'title';
   state.suggestions = suggest(state.index[qtype], $('guess-input').value);
   state.active = state.suggestions.length ? 0 : -1;
@@ -468,19 +521,34 @@ function onInputKey(e) {
 
 // ---------- Olaylar ----------
 
-function bindGame() {
-  $('opt-question').value = settings.question;
-  $('opt-era').value = settings.era;
-  $('opt-source').value = settings.source;
+function changeSetting(key, value) {
+  if (settings[key] === value) return;
+  settings[key] = value;
+  saveSettings();
+  state.queued = null;
+  renderOptions();
+  newRound();
+}
 
-  for (const [id, key] of [['opt-question', 'question'], ['opt-era', 'era'], ['opt-source', 'source']]) {
-    $(id).onchange = () => {
-      settings[key] = $(id).value;
-      saveSettings();
-      state.queued = null;
-      newRound();
-    };
-  }
+function bindGame() {
+  $('opt-question').onchange = () => changeSetting('question', $('opt-question').value);
+  $('opt-era').onchange = () => changeSetting('era', $('opt-era').value);
+  for (const b of $('qtabs').children) b.onclick = () => changeSetting('question', b.dataset.q);
+  for (const b of $('source-buttons').children) b.onclick = () => changeSetting('source', b.dataset.source);
+  $('btn-any-era').onclick = () => changeSetting('era', 'all');
+  $('btn-reroll').onclick = newRound;
+  $('btn-shuffle').onclick = newRound;
+
+  $('opt-search').onchange = () => {
+    settings.search = $('opt-search').checked;
+    saveSettings();
+    hideSuggestions();
+  };
+  $('opt-volume').oninput = () => {
+    settings.volume = Number($('opt-volume').value);
+    saveSettings();
+    applyVolume();
+  };
 
   $('btn-play').onclick = () => {
     const r = state.round;
@@ -502,7 +570,7 @@ function bindGame() {
 
   document.addEventListener('keydown', e => {
     if ($('screen-game').hidden) return;
-    const typing = e.target.matches('input, select, textarea');
+    const typing = e.target.matches('input:not([type=range]):not([type=checkbox]), select, textarea');
     if (e.code === 'Space' && !typing) {
       e.preventDefault();
       $('btn-play').click();

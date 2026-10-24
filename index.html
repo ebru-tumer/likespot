@@ -5,126 +5,157 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LikeSpot</title>
   <meta name="description" content="Spotify'da beğendiğin şarkılardan 0.1 saniyelik kliplerle tahmin oyunu.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%231ed760'/><path d='M38 30v40l32-20z' fill='%23111'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%239d4edd'/><path d='M38 30v40l32-20z' fill='%23fff'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,800;1,900&display=swap">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><span class="logo-dot"></span>LikeSpot</div>
-    <div class="stats" id="stats" hidden>
-      <div class="stat"><span id="stat-score">0</span><small>puan</small></div>
-      <div class="stat"><span id="stat-streak">0</span><small>seri</small></div>
-      <div class="stat"><span id="stat-best">0</span><small>en iyi</small></div>
-    </div>
-  </header>
+  <div class="spotlight" aria-hidden="true"></div>
 
-  <main>
-    <!-- Bağlantı ekranı -->
-    <section id="screen-setup" class="screen card" hidden>
-      <h1>Beğendiğin şarkıları ne kadar iyi tanıyorsun?</h1>
-      <p class="lead">Spotify hesabını bağla, beğenilen şarkılarından rastgele biri 0.1 saniyelik bir klip olarak çalsın. Bilemezsen klip uzar.</p>
-
-      <ol class="steps">
-        <li>
-          <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a>'da bir uygulama oluştur
-          (API olarak <b>Web API</b> ve <b>Web Playback SDK</b>'yı seç).
-        </li>
-        <li>
-          Uygulamanın <b>Redirect URI</b> alanına tam olarak şunu ekle:
-          <div class="copy-row">
-            <code id="redirect-uri"></code>
-            <button class="btn ghost small" id="copy-redirect" type="button">Kopyala</button>
-          </div>
-        </li>
-        <li>
-          <b>Client ID</b>'yi buraya yapıştır:
-          <input id="client-id" class="input" placeholder="ör. 3f1c9a…" autocomplete="off" spellcheck="false">
-        </li>
-      </ol>
-
-      <div class="actions">
-        <button class="btn primary" id="btn-login" type="button">Spotify ile bağlan</button>
-        <button class="btn ghost" id="btn-demo" type="button">Bağlanmadan demo oyna</button>
-      </div>
-      <p class="error" id="setup-error" hidden></p>
-    </section>
-
-    <!-- Yükleme ekranı -->
-    <section id="screen-loading" class="screen card center" hidden>
-      <div class="spinner"></div>
-      <p id="loading-text">Beğenilen şarkılar yükleniyor…</p>
-      <div class="progress"><div id="loading-bar"></div></div>
-    </section>
-
-    <!-- Oyun ekranı -->
-    <section id="screen-game" class="screen" hidden>
-      <nav class="difficulty" id="difficulty" role="tablist" aria-label="Zorluk"></nav>
-
-      <div class="options">
-        <label>Soru
+  <div class="layout">
+    <!-- Sol panel -->
+    <aside class="side side-left" id="side-left" hidden>
+      <div class="group">
+        <p class="label">Soru</p>
+        <div class="select-wrap">
+          <svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.9L19 9.5l-4 3.4 1.2 5.1L12 15.3 7.8 18l1.2-5.1-4-3.4 5.2-1.6z"/></svg>
           <select id="opt-question">
             <option value="title">Şarkının adı</option>
             <option value="artist">Sanatçı</option>
             <option value="mixed">Karışık</option>
           </select>
-        </label>
-        <label>Dönem
+        </div>
+      </div>
+      <div class="group">
+        <p class="label">Dönem</p>
+        <div class="select-wrap">
+          <svg viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2M4 14h3v6H5a1 1 0 0 1-1-1zm16 0h-3v6h2a1 1 0 0 0 1-1z"/></svg>
           <select id="opt-era">
-            <option value="all">Hepsi</option>
-            <option value="classic">Klasik (2000 öncesi)</option>
+            <option value="all">Tüm dönemler</option>
+            <option value="classic">Klasik</option>
             <option value="2000s">2000'ler</option>
             <option value="2010s">2010'lar</option>
             <option value="2020s">2020'ler</option>
           </select>
-        </label>
-        <label>Ses
-          <select id="opt-source">
-            <option value="preview">Önizleme (hassas klip)</option>
-            <option value="spotify">Spotify (tam şarkı, Premium)</option>
-          </select>
-        </label>
+        </div>
       </div>
+      <hr>
+      <div class="group diff-group">
+        <p class="label">Zorluk</p>
+        <div class="diff-list" id="difficulty-list"></div>
+      </div>
+      <hr>
+      <div class="group links">
+        <button class="side-link" id="btn-reroll" type="button">
+          <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16m0 4v-4h-4"/></svg>
+          Başka şarkı
+        </button>
+        <button class="side-link" id="btn-any-era" type="button">
+          <svg viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>
+          Tüm dönemler
+        </button>
+      </div>
+    </aside>
 
-      <div class="card game">
+    <main class="center">
+      <div class="logo">likespot</div>
+
+      <!-- Bağlantı ekranı -->
+      <section id="screen-setup" class="screen panel" hidden>
+        <h1>Beğendiğin şarkıları ne kadar iyi tanıyorsun?</h1>
+        <p class="lead">Spotify hesabını bağla. Beğenilen şarkılarından biri 0.1 saniyelik bir klip olarak çalar. Bilemezsen klip uzar.</p>
+        <ol class="steps">
+          <li>
+            <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a>'da bir uygulama oluştur
+            (API olarak <b>Web API</b> ve <b>Web Playback SDK</b>'yı seç).
+          </li>
+          <li>
+            Uygulamanın <b>Redirect URI</b> alanına tam olarak şunu ekle:
+            <div class="copy-row">
+              <code id="redirect-uri"></code>
+              <button class="btn ghost small" id="copy-redirect" type="button">Kopyala</button>
+            </div>
+          </li>
+          <li>
+            <b>Client ID</b>'yi buraya yapıştır:
+            <input id="client-id" class="input" placeholder="ör. 3f1c9a…" autocomplete="off" spellcheck="false">
+          </li>
+        </ol>
+        <div class="actions">
+          <button class="btn primary" id="btn-login" type="button">Spotify ile bağlan</button>
+          <button class="btn ghost" id="btn-demo" type="button">Bağlanmadan demo oyna</button>
+        </div>
+        <p class="error" id="setup-error" hidden></p>
+      </section>
+
+      <!-- Yükleme ekranı -->
+      <section id="screen-loading" class="screen panel center-text" hidden>
+        <div class="spinner"></div>
+        <p id="loading-text">Beğenilen şarkılar yükleniyor…</p>
+        <div class="progress"><div id="loading-bar"></div></div>
+      </section>
+
+      <!-- Oyun ekranı -->
+      <section id="screen-game" class="screen game" hidden>
+        <div class="toprow">
+          <button class="icon-btn" id="btn-shuffle" type="button" title="Başka şarkı" aria-label="Başka şarkı">
+            <svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
+          </button>
+          <nav class="qtabs" id="qtabs" aria-label="Soru tipi">
+            <button type="button" data-q="title">Şarkı</button>
+            <button type="button" data-q="mixed">Karışık</button>
+            <button type="button" data-q="artist">Sanatçı</button>
+          </nav>
+          <div class="streak" id="stats" title="Seri">
+            <svg viewBox="0 0 24 24"><path d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.2-5 .2 2 1 3 2 3.2C10.5 8 11 5 12 2z"/></svg>
+            <span id="stat-streak">0</span>
+          </div>
+        </div>
+
+        <nav class="diff-pills" id="difficulty" role="tablist" aria-label="Zorluk"></nav>
+
+        <div class="timeline" id="timeline">
+          <div class="tl-unlocked" id="tl-unlocked"></div>
+          <div class="tl-play" id="clip-bar"></div>
+          <div class="tl-marker" id="tl-marker"><span id="tl-label">2s</span></div>
+        </div>
+
         <p class="question" id="question">Bu şarkının adı ne?</p>
-        <p class="diff-hint" id="diff-hint"></p>
-
-        <div class="ladder" id="ladder"></div>
 
         <div class="player">
+          <span class="player-side"></span>
           <button class="play-btn" id="btn-play" type="button" aria-label="Klibi çal">
             <svg viewBox="0 0 24 24" class="icon-play"><path d="M8 5v14l11-7z"/></svg>
             <svg viewBox="0 0 24 24" class="icon-stop"><path d="M7 7h10v10H7z"/></svg>
             <span class="btn-spinner"></span>
           </button>
-          <div class="clip-info">
-            <span id="clip-length">0.1s</span>
-            <small id="clip-note">Çalmak için bas · boşluk tuşu</small>
-          </div>
+          <span class="player-side clip-length" id="clip-length">2s</span>
         </div>
-        <div class="clip-progress"><div id="clip-bar"></div></div>
-
-        <ul class="guesses" id="guesses"></ul>
+        <p class="clip-note" id="clip-note">Çalmak için bas · boşluk tuşu</p>
 
         <form class="answer" id="answer-type" autocomplete="off">
           <div class="combo">
-            <input id="guess-input" class="input" placeholder="Şarkının adını yaz…" spellcheck="false">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+            <input id="guess-input" placeholder="Şarkıyı bil" spellcheck="false">
             <ul class="suggestions" id="suggestions" role="listbox" hidden></ul>
           </div>
-          <div class="answer-actions">
-            <button class="btn ghost" id="btn-skip" type="button">Atla</button>
-            <button class="btn primary" id="btn-guess" type="submit">Tahmin et</button>
-          </div>
+          <button class="skip-btn" id="btn-skip" type="button">
+            <svg viewBox="0 0 24 24"><path d="M6 6l9 6-9 6zM18 6v12"/></svg>
+            Atla
+          </button>
+          <button id="btn-guess" type="submit" hidden></button>
         </form>
 
-        <div class="answer" id="answer-choice" hidden>
+        <div class="answer-choice" id="answer-choice" hidden>
           <div class="choices" id="choices"></div>
-          <div class="answer-actions">
-            <button class="btn ghost" id="btn-skip-choice" type="button">Atla</button>
-          </div>
+          <button class="skip-btn" id="btn-skip-choice" type="button">
+            <svg viewBox="0 0 24 24"><path d="M6 6l9 6-9 6zM18 6v12"/></svg>
+            Atla
+          </button>
         </div>
+
+        <ul class="guesses" id="guesses"></ul>
 
         <div class="reveal" id="reveal" hidden>
           <img id="reveal-img" alt="">
@@ -137,21 +168,60 @@
           <div class="reveal-actions">
             <button class="btn ghost" id="btn-listen" type="button">Biraz daha dinle</button>
             <a class="btn ghost" id="btn-open" target="_blank" rel="noopener">Spotify'da aç</a>
-            <button class="btn primary" id="btn-next" type="button">Sonraki şarkı ⏎</button>
+            <button class="btn primary" id="btn-next" type="button">Sonraki ⏎</button>
           </div>
         </div>
-      </div>
 
-      <footer class="libbar">
-        <span id="lib-info"></span>
-        <span class="libbar-actions">
-          <button class="link" id="btn-refresh" type="button">Listeyi yenile</button>
-          <button class="link" id="btn-logout" type="button">Çıkış</button>
-        </span>
-      </footer>
-      <p class="error" id="game-error" hidden></p>
-    </section>
-  </main>
+        <p class="error" id="game-error" hidden></p>
+
+        <footer class="libbar">
+          <span id="lib-info"></span>
+          <span class="score">Puan <b id="stat-score">0</b> · En iyi seri <b id="stat-best">0</b></span>
+          <span class="libbar-actions">
+            <button class="link" id="btn-refresh" type="button">Listeyi yenile</button>
+            <button class="link" id="btn-logout" type="button">Çıkış</button>
+          </span>
+        </footer>
+      </section>
+    </main>
+
+    <!-- Sağ panel -->
+    <aside class="side side-right" id="side-right" hidden>
+      <div class="group">
+        <p class="label">Ses</p>
+        <div class="stack" id="source-buttons">
+          <button class="opt" type="button" data-source="preview">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm11-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
+            30 sn önizleme
+          </button>
+          <button class="opt" type="button" data-source="spotify">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            Spotify (tam şarkı)
+          </button>
+        </div>
+      </div>
+      <hr>
+      <div class="group">
+        <p class="label">Arama</p>
+        <label class="opt toggle">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          Kolay arama
+          <input type="checkbox" id="opt-search">
+          <span class="switch"></span>
+        </label>
+      </div>
+      <hr>
+      <div class="group">
+        <p class="label">Klipler</p>
+        <div class="chips" id="ladder"></div>
+      </div>
+      <hr>
+      <div class="group">
+        <p class="label">Ses düzeyi</p>
+        <input type="range" id="opt-volume" min="0" max="100" value="90" aria-label="Ses düzeyi">
+      </div>
+    </aside>
+  </div>
 
   <script type="module" src="js/main.js"></script>
 </body>
