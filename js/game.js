@@ -94,20 +94,33 @@ export function buildIndex(question, tracks) {
 // adı yazılanla başlayanlar, sonra bir kelimesi yazılanla başlayanlar, sonra adında geçenler,
 // en son sadece sanatçı adı eşleşenler.
 export function suggest(index, text, limit = 12) {
+  return rankItems(index, text, limit);
+}
+
+// Aynı şarkı (ad + ilk sanatçı) birden fazla kaynaktan gelirse bir kez gösterilir.
+export function rankItems(items, text, limit = 12) {
   const query = normalize(text);
   const words = query.split(' ').filter(Boolean);
   if (!words.length) return [];
   const rank = item => {
     const label = normalize(item.label);
     if (label.startsWith(query)) return 0;
-    if (label.split(' ').some(w => w.startsWith(words[0]))) return 1;
-    if (label.includes(words[0])) return 2;
-    return 3;
+    if (item.sub && normalize(item.sub).startsWith(query)) return 1;
+    if (label.split(' ').some(w => w.startsWith(words[0]))) return 2;
+    if (label.includes(words[0])) return 3;
+    return 4;
   };
-  return index
+  const seen = new Set();
+  return items
     .filter(item => words.every(w => item.search.includes(w)))
-    .map(item => ({ item, r: rank(item) }))
-    .sort((a, b) => a.r - b.r || a.item.label.length - b.item.label.length)
+    .filter(item => {
+      const key = `${normalize(item.label)}|${normalize((item.sub || '').split(',')[0])}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((item, i) => ({ item, r: rank(item), i }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
     .slice(0, limit)
     .map(x => x.item);
 }
