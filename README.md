@@ -14,11 +14,11 @@ Bilemezsen ya da atlarsan sonraki klibe geçilir.
 
 | Zorluk   | Yazarken öneri | Klip yeri                          | Puan çarpanı |
 |----------|----------------|------------------------------------|--------------|
-| Kolay    | Var            | Önizlemenin başı                   | ×1 |
-| Orta     | Var            | Rastgele                           | ×2 |
-| Zor      | Yok            | Önizlemenin başı                   | ×3 |
-| Uzman    | Yok            | Rastgele                           | ×4 |
-| İmkânsız | Yok            | Her adımda başka rastgele bir yer  | ×5 |
+| Kolay    | İlk harften    | Önizlemenin başı                   | ×1 |
+| Orta     | İlk harften    | Rastgele                           | ×2 |
+| Zor      | 2 harften sonra| Önizlemenin başı                   | ×3 |
+| Uzman    | 3 harften sonra| Rastgele                           | ×4 |
+| İmkânsız | 3 harften sonra| Her adımda başka rastgele bir yer  | ×5 |
 
 Ayrıca şunlar seçilebilir:
 - **Soru:** şarkı adı / sanatçı / karışık
