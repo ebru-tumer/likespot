@@ -1,5 +1,5 @@
 import * as auth from './auth.js';
-import { loadCachedLibrary, fetchLikedSongs, clearLibrary } from './library.js';
+import { loadCachedLibrary, fetchLikedSongs, clearLibrary, hasLibrary } from './library.js';
 import * as yt from './youtube.js';
 import { PreviewPlayer, SpotifyPlayer } from './players.js';
 import {
@@ -134,9 +134,9 @@ async function loadYoutubeLibrary() {
 }
 
 async function loadLibrary(force = false) {
-  const cached = !force && loadCachedLibrary();
+  const cached = !force && loadCachedLibrary('spotify');
   // Eski önbellekte sanatçı kimlikleri yok; dil tespiti için yeniden çekilir.
-  if (cached?.tracks?.length && (cached.provider || 'spotify') === 'spotify' && cached.tracks[0].artistIds) return cached;
+  if (cached?.tracks?.length && cached.tracks[0].artistIds) return cached;
   show('loading');
   $('loading-text').textContent = 'Beğenilen şarkılar yükleniyor…';
   $('loading-bar').style.width = '0%';
@@ -146,18 +146,71 @@ async function loadLibrary(force = false) {
   });
 }
 
+// ---------- Hesaplar arası geçiş ----------
+
+const PROVIDERS = { spotify: 'Spotify', youtube: 'YouTube Music', playlist: 'Çalma listesi' };
+
+function renderProviders() {
+  const sel = $('opt-provider');
+  sel.innerHTML = '';
+  for (const [key, label] of Object.entries(PROVIDERS)) {
+    const connected = hasLibrary(key);
+    // Çalma listesi ancak daha önce bir liste yüklendiyse seçilebilir.
+    if (key === 'playlist' && !connected && state.provider !== 'playlist') continue;
+    const opt = new Option(connected || key === state.provider ? label : `${label} (bağlan)`, key);
+    sel.add(opt);
+  }
+  if (state.provider === 'demo') sel.add(new Option('Demo', 'demo'));
+  sel.value = state.provider;
+}
+
+// Seçilen hesaba geçer: listesi kayıtlıysa hemen, değilse önce bağlanır.
+async function switchProvider(p) {
+  if (p === state.provider) return;
+  stopAudio();
+  $('game-error').hidden = true;
+  try {
+    if (p === 'spotify') {
+      if (!auth.isLoggedIn()) {
+        localStorage.setItem(KEY_PROVIDER, 'spotify');
+        await auth.login(); // Spotify'a yönlendirir, dönünce liste yüklenir.
+        return;
+      }
+      const lib = await loadLibrary();
+      return startGame(lib.tracks, 'spotify');
+    }
+    if (p === 'youtube') {
+      const cached = loadCachedLibrary('youtube');
+      if (cached?.tracks?.length) return startGame(cached.tracks, 'youtube');
+      await yt.login();
+      const lib = await loadYoutubeLibrary();
+      return startGame(lib.tracks, 'youtube');
+    }
+    const cached = loadCachedLibrary(p);
+    if (cached?.tracks?.length) return startGame(cached.tracks, p);
+  } catch (err) {
+    show('game');
+    renderProviders();
+    showError('game-error', err);
+  }
+}
+
 // ---------- Oyun ----------
 
 function startGame(tracks, provider) {
   const demo = provider === 'demo';
   state.tracks = tracks;
   state.provider = provider;
+  if (!demo) localStorage.setItem(KEY_PROVIDER, provider);
   state.index = { title: buildIndex('title', tracks), artist: buildIndex('artist', tracks) };
+  renderProviders();
   tagLanguages(tracks);
   show('game');
 
   $('btn-refresh').hidden = demo;
-  $('btn-logout').textContent = demo ? 'Demodan çık' : 'Çıkış';
+  $('btn-logout').textContent = {
+    demo: 'Demodan çık', spotify: "Spotify'dan çık", youtube: "YouTube'dan çık", playlist: 'Listeyi kapat',
+  }[provider];
   renderLibInfo();
   if (provider === 'spotify') {
     fetchArtistGenres(tracks, (done, total, genres) => {
@@ -749,14 +802,19 @@ function bindGame() {
       showError('game-error', err);
     }
   };
+  $('opt-provider').onchange = () => switchProvider($('opt-provider').value);
+
+  // Sadece şu anki hesaptan çıkar; bağlı başka bir hesap varsa ona geçer.
   $('btn-logout').onclick = () => {
     stopAudio();
-    if (state.provider !== 'demo') {
-      auth.logout();
-      yt.logout();
-      clearLibrary();
-      localStorage.removeItem(KEY_PROVIDER);
-    }
+    const p = state.provider;
+    if (p === 'spotify') auth.logout();
+    if (p === 'youtube') yt.logout();
+    if (p === 'playlist') localStorage.removeItem('ls.playlistId');
+    if (p !== 'demo') clearLibrary(p);
+    const other = Object.keys(PROVIDERS).find(k => hasLibrary(k));
+    if (other) return startGame(loadCachedLibrary(other).tracks, other);
+    localStorage.removeItem(KEY_PROVIDER);
     show('setup');
   };
 }
@@ -768,8 +826,8 @@ async function main() {
     if (await auth.handleRedirect()) localStorage.setItem(KEY_PROVIDER, 'spotify');
     const provider = localStorage.getItem(KEY_PROVIDER) || (auth.isLoggedIn() ? 'spotify' : '');
     if (provider === 'youtube' || provider === 'playlist') {
-      const cached = loadCachedLibrary();
-      if (cached?.provider === provider && cached.tracks.length) return startGame(cached.tracks, provider);
+      const cached = loadCachedLibrary(provider);
+      if (cached?.tracks?.length) return startGame(cached.tracks, provider);
       return show('setup');
     }
     if (!auth.isLoggedIn()) return show('setup');
