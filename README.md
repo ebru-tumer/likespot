@@ -3,6 +3,10 @@
 [Songspot](https://songspot.net/genres/pop)'tan esinlenen bir şarkı tahmin oyunu — ama şarkılar **Spotify'da beğendiğin şarkılardan** geliyor.
 Kısacık bir klip çalar; bilemezsen ya da atlarsan klip uzar.
 
+**Canlı site:** https://ebru-tumer.github.io/likespot/
+
+Giriş yolları: Spotify, YouTube Music (Google girişi), giriş yapmadan YouTube Music çalma listesi linki ya da demo.
+
 ## Zorluklar
 
 Her zorlukta klipler aynı: **0.1 · 0.5 · 2 · 8 · 15 sn** ve cevap her zaman yazılarak verilir.
