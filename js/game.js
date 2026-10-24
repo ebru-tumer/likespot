@@ -90,19 +90,26 @@ export function buildIndex(question, tracks) {
   return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, 'tr'));
 }
 
-export function suggest(index, text, limit = 8) {
-  const words = normalize(text).split(' ').filter(Boolean);
+// Tüm eşleşmeleri bulur, en iyi eşleşenler üstte olacak şekilde sıralar:
+// adı yazılanla başlayanlar, sonra bir kelimesi yazılanla başlayanlar, sonra adında geçenler,
+// en son sadece sanatçı adı eşleşenler.
+export function suggest(index, text, limit = 12) {
+  const query = normalize(text);
+  const words = query.split(' ').filter(Boolean);
   if (!words.length) return [];
-  const hits = [];
-  for (const item of index) {
-    if (words.every(w => item.search.includes(w))) {
-      hits.push(item);
-      if (hits.length >= 60) break;
-    }
-  }
-  const first = words[0];
-  hits.sort((a, b) => Number(!a.search.startsWith(first)) - Number(!b.search.startsWith(first)));
-  return hits.slice(0, limit);
+  const rank = item => {
+    const label = normalize(item.label);
+    if (label.startsWith(query)) return 0;
+    if (label.split(' ').some(w => w.startsWith(words[0]))) return 1;
+    if (label.includes(words[0])) return 2;
+    return 3;
+  };
+  return index
+    .filter(item => words.every(w => item.search.includes(w)))
+    .map(item => ({ item, r: rank(item) }))
+    .sort((a, b) => a.r - b.r || a.item.label.length - b.item.label.length)
+    .slice(0, limit)
+    .map(x => x.item);
 }
 
 // Son çalınanları tekrar etmeden rastgele şarkı seçer.

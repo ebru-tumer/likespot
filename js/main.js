@@ -223,8 +223,8 @@ function renderOptions() {
   const source = canSpotify ? settings.source : 'preview';
   for (const b of $('source-buttons').children) {
     b.classList.toggle('active', b.dataset.source === source);
-    b.disabled = !canSpotify && b.dataset.source === 'spotify';
-    b.title = b.disabled ? 'Sadece Spotify ile bağlanınca kullanılabilir' : '';
+    // Spotify'dan çalma sadece Spotify ile bağlanınca anlamlı; diğerlerinde seçenek hiç görünmez.
+    b.hidden = !canSpotify && b.dataset.source === 'spotify';
   }
 
   $('opt-search').checked = settings.search;
