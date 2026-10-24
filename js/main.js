@@ -87,8 +87,34 @@ function initSetup() {
       showError('setup-error', err);
     }
   };
+  $('playlist-form').onsubmit = async e => {
+    e.preventDefault();
+    $('setup-error').hidden = true;
+    const id = yt.playlistIdFrom($('playlist-url').value);
+    if (!id) return showError('setup-error', new Error('Bu bir çalma listesi linkine benzemiyor. Linkte "list=" kısmı olmalı.'));
+    try {
+      const lib = await loadPlaylist(id);
+      localStorage.setItem(KEY_PROVIDER, 'playlist');
+      startGame(lib.tracks, 'playlist');
+    } catch (err) {
+      show('setup');
+      showError('setup-error', err);
+    }
+  };
   $('btn-demo').onclick = () => startGame(DEMO_TRACKS, 'demo');
   yt.loadGoogle().catch(() => {});
+}
+
+async function loadPlaylist(id) {
+  show('loading');
+  $('loading-text').textContent = 'Çalma listesi yükleniyor…';
+  $('loading-bar').style.width = '0%';
+  const lib = await yt.fetchPlaylist(id, (scanned, total, songs) => {
+    $('loading-text').textContent = `Çalma listesi yükleniyor… ${scanned} / ${total} (${songs} şarkı)`;
+    $('loading-bar').style.width = `${total ? Math.min(100, (scanned / total) * 100) : 100}%`;
+  });
+  if (!lib.tracks.length) throw new Error('Bu çalma listesinde şarkı bulunamadı.');
+  return lib;
 }
 
 async function loadYoutubeLibrary() {
@@ -108,7 +134,7 @@ async function loadYoutubeLibrary() {
 async function loadLibrary(force = false) {
   const cached = !force && loadCachedLibrary();
   // Eski önbellekte sanatçı kimlikleri yok; dil tespiti için yeniden çekilir.
-  if (cached?.tracks?.length && cached.provider !== 'youtube' && cached.tracks[0].artistIds) return cached;
+  if (cached?.tracks?.length && (cached.provider || 'spotify') === 'spotify' && cached.tracks[0].artistIds) return cached;
   show('loading');
   $('loading-text').textContent = 'Beğenilen şarkılar yükleniyor…';
   $('loading-bar').style.width = '0%';
@@ -148,7 +174,7 @@ function renderLibInfo(note = '') {
   const tr = t.filter(x => x.lang === 'tr').length;
   const base = state.provider === 'demo'
     ? `Demo · ${t.length} popüler şarkı`
-    : `${t.length.toLocaleString('tr')} beğenilen şarkı${state.provider === 'youtube' ? ' (YouTube Music)' : ''}`;
+    : `${t.length.toLocaleString('tr')} beğenilen şarkı${{ youtube: ' (YouTube Music)', playlist: ' (çalma listesi)' }[state.provider] || ''}`;
   $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, note].filter(Boolean).join(' · ');
 }
 
@@ -661,6 +687,11 @@ function bindGame() {
 
   $('btn-refresh').onclick = async () => {
     try {
+      if (state.provider === 'playlist') {
+        const lib = await loadPlaylist(localStorage.getItem('ls.playlistId'));
+        startGame(lib.tracks, 'playlist');
+        return;
+      }
       if (state.provider === 'youtube') {
         if (!yt.hasValidToken()) await yt.login();
         const lib = await loadYoutubeLibrary();
@@ -692,9 +723,9 @@ async function main() {
   try {
     if (await auth.handleRedirect()) localStorage.setItem(KEY_PROVIDER, 'spotify');
     const provider = localStorage.getItem(KEY_PROVIDER) || (auth.isLoggedIn() ? 'spotify' : '');
-    if (provider === 'youtube') {
+    if (provider === 'youtube' || provider === 'playlist') {
       const cached = loadCachedLibrary();
-      if (cached?.provider === 'youtube' && cached.tracks.length) return startGame(cached.tracks, 'youtube');
+      if (cached?.provider === provider && cached.tracks.length) return startGame(cached.tracks, provider);
       return show('setup');
     }
     if (!auth.isLoggedIn()) return show('setup');

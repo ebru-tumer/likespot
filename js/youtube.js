@@ -1,7 +1,7 @@
 // YouTube Music desteği. YouTube Music'te beğenilen şarkılar YouTube hesabındaki
 // "beğenilen videolar" listesine de düşer; bu listeyi YouTube Data API ile okuruz.
 // Giriş Google Identity Services ile tarayıcıda yapılır, sunucu gerekmez.
-import { GOOGLE_CLIENT_ID } from './config.js';
+import { GOOGLE_CLIENT_ID, GOOGLE_API_KEY } from './config.js';
 import { saveLibrary } from './library.js';
 
 const SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
@@ -86,11 +86,22 @@ function parseDuration(iso) {
 // Bir YouTube videosunu şarkıya çevirir; müzik değilse null.
 export function parseVideo(v) {
   const s = v.snippet || {};
-  const channel = s.channelTitle || '';
-  const topic = /\s-\sTopic$/.test(channel);
-  if (!topic && s.categoryId !== '10') return null;
+  return toTrack({
+    videoId: v.id,
+    title: s.title,
+    channel: s.channelTitle,
+    isMusic: s.categoryId === '10',
+    thumbs: s.thumbnails,
+    duration: parseDuration(v.contentDetails?.duration),
+  });
+}
 
-  let name = s.title || '';
+// Başlık ve kanal adından şarkı adı ve sanatçıyı çıkarır.
+function toTrack({ videoId, title, channel = '', isMusic, thumbs = {}, duration = 0 }) {
+  const topic = /\s-\sTopic$/.test(channel);
+  if (!topic && !isMusic) return null;
+
+  let name = title || '';
   let artist;
   if (topic) {
     artist = channel.replace(/\s-\sTopic$/, '');
@@ -117,9 +128,8 @@ export function parseVideo(v) {
   const artists = artist.split(/\s*,\s*|\s+(?:feat\.?|ft\.?)\s+/i).filter(Boolean);
   if (!name || !artists.length) return null;
 
-  const thumbs = s.thumbnails || {};
   return {
-    id: `yt-${v.id}`,
+    id: `yt-${videoId}`,
     uri: '',
     name: name.trim(),
     artists,
@@ -127,8 +137,8 @@ export function parseVideo(v) {
     album: '',
     year: null,
     image: (thumbs.medium || thumbs.high || thumbs.default)?.url || '',
-    duration: parseDuration(v.contentDetails?.duration),
-    url: `https://music.youtube.com/watch?v=${v.id}`,
+    duration,
+    url: `https://music.youtube.com/watch?v=${videoId}`,
   };
 }
 
@@ -156,4 +166,48 @@ export async function fetchYoutubeLikes(onProgress) {
     pageToken = data.nextPageToken;
   } while (pageToken);
   return saveLibrary('youtube', tracks);
+}
+
+// "https://music.youtube.com/playlist?list=PL..." -> "PL..."
+export function playlistIdFrom(text) {
+  const t = (text || '').trim();
+  try {
+    const list = new URL(t).searchParams.get('list');
+    if (list) return list;
+  } catch { /* link değil, belki doğrudan kimlik */ }
+  return /^[\w-]{10,}$/.test(t) ? t : '';
+}
+
+// Herkese açık ya da liste dışı bir çalma listesini giriş yapmadan okur (API anahtarıyla).
+export async function fetchPlaylist(playlistId, onProgress) {
+  if (!GOOGLE_API_KEY) throw new Error('Çalma listesi özelliği henüz ayarlanmadı (Google API anahtarı eksik).');
+  if (playlistId === 'LM' || playlistId === 'LL') {
+    throw new Error('"Beğenilen müzikler" listesi gizli olduğu için okunamıyor. Herkese açık ya da liste dışı bir çalma listesinin linkini yapıştır.');
+  }
+  const tracks = [];
+  let scanned = 0;
+  let pageToken = '';
+  do {
+    const params = new URLSearchParams({ part: 'snippet', playlistId, maxResults: '50', key: GOOGLE_API_KEY });
+    if (pageToken) params.set('pageToken', pageToken);
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?${params}`);
+    if (res.status === 404) throw new Error('Çalma listesi bulunamadı. Listenin "Herkese açık" ya da "Liste dışı" olduğundan emin ol.');
+    if (!res.ok) throw new Error(`YouTube API hatası ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    for (const item of data.items || []) {
+      const s = item.snippet || {};
+      const videoId = s.resourceId?.videoId;
+      if (!videoId || /^(Deleted|Private) video$/.test(s.title)) continue;
+      // Çalma listesindeki her şeyi müzik say; kanal adı yükleyen kanaldır.
+      const t = toTrack({ videoId, title: s.title, channel: s.videoOwnerChannelTitle, isMusic: true, thumbs: s.thumbnails });
+      if (t) tracks.push(t);
+    }
+    scanned += (data.items || []).length;
+    onProgress?.(scanned, data.pageInfo?.totalResults || scanned, tracks.length);
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  const lib = saveLibrary('playlist', tracks);
+  lib.playlistId = playlistId;
+  localStorage.setItem('ls.playlistId', playlistId);
+  return lib;
 }

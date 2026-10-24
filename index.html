@@ -87,6 +87,15 @@
             YouTube Music ile bağlan
           </button>
         </div>
+        <form class="playlist-form" id="playlist-form" autocomplete="off">
+          <p class="or">ya da giriş yapmadan</p>
+          <label for="playlist-url">YouTube Music çalma listesi linkini yapıştır</label>
+          <div class="playlist-row">
+            <input id="playlist-url" class="input" placeholder="https://music.youtube.com/playlist?list=…" spellcheck="false">
+            <button class="btn ghost" type="submit">Oyna</button>
+          </div>
+          <small>Liste "Herkese açık" ya da "Liste dışı" olmalı.</small>
+        </form>
         <button class="link demo-link" id="btn-demo" type="button">Bağlanmadan demo oyna →</button>
         <p class="error" id="setup-error" hidden></p>
 
