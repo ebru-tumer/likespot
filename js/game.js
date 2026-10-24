@@ -2,21 +2,22 @@
 import { normalize, cleanTitle } from './players.js';
 
 // Her zorlukta klipler aynı ve cevap hep yazılarak verilir.
-// Zorluk; klibin yeri, önerilerin kaç harften sonra çıktığı ve klibin her adımda yer değiştirmesiyle artar.
+// Zorluk; şarkının popülerliği (bkz. Picker.tierSlice), klibin yeri, önerilerin kaç harften sonra
+// çıktığı ve klibin her adımda yer değiştirmesiyle artar.
 const CLIPS = [0.1, 0.5, 2, 8, 15];
 
 export const DIFFICULTIES = {
   easy:       { label: 'Kolay',    clips: CLIPS, mode: 'type', offset: 'start',  mult: 1, minChars: 1,
-                color: '#22c55e', on: '#06210f', hint: 'Öneriler ilk harften · şarkının tanıdık yerinden' },
+                color: '#22c55e', on: '#06210f', hint: 'En bilinen şarkıların · tanıdık yerden · öneriler ilk harften' },
   medium:     { label: 'Orta',     clips: CLIPS, mode: 'type', offset: 'random', mult: 2, minChars: 1,
-                color: '#facc15', on: '#2a2104', hint: 'Öneriler ilk harften · rastgele bir yerden' },
+                color: '#facc15', on: '#2a2104', hint: 'Bilinen şarkıların · rastgele yerden · öneriler ilk harften' },
   hard:       { label: 'Zor',      clips: CLIPS, mode: 'type', offset: 'start',  mult: 3, minChars: 2,
-                color: '#fb923c', on: '#2b1406', hint: 'Öneriler 2 harften sonra · tanıdık yerden' },
+                color: '#fb923c', on: '#2b1406', hint: 'Orta popülerlikte şarkılar · tanıdık yerden · öneriler 2 harften' },
   expert:     { label: 'Uzman',    clips: CLIPS, mode: 'type', offset: 'random', mult: 4, minChars: 3,
-                color: '#f87171', on: '#2b0b0b', hint: 'Öneriler 3 harften sonra · rastgele yerden' },
+                color: '#f87171', on: '#2b0b0b', hint: 'Az bilinen şarkılar · rastgele yerden · öneriler 3 harften' },
   impossible: { label: 'İmkânsız', clips: CLIPS, mode: 'type', offset: 'random', mult: 5, minChars: 3,
                 reshuffle: true,
-                color: '#a855f7', on: '#ffffff', hint: 'Öneriler 3 harften sonra · her adımda şarkının başka bir yeri' },
+                color: '#a855f7', on: '#ffffff', hint: 'En az bilinen şarkıların · her adımda başka bir yer · öneriler 3 harften' },
 };
 
 export const ERAS = {
@@ -140,8 +141,19 @@ export class Picker {
     return filtered.length ? filtered : usable;
   }
 
-  next(tracks, era, lang) {
-    const pool = this.pool(tracks, era, lang);
+  // tier: 0 (en popüler beşte bir) ... 4 (en az bilinen beşte bir). Popülerlik henüz taranmadıysa
+  // ya da liste çok küçükse tüm havuz kullanılır.
+  static tierSlice(pool, tier) {
+    if (tier == null || pool.length < 15) return pool;
+    const known = pool.filter(t => t.pop != null).length;
+    if (known < pool.length * 0.5) return pool;
+    const sorted = [...pool].sort((a, b) => (b.pop ?? 0) - (a.pop ?? 0));
+    const size = sorted.length / 5;
+    return sorted.slice(Math.floor(tier * size), Math.floor((tier + 1) * size));
+  }
+
+  next(tracks, era, lang, tier) {
+    const pool = Picker.tierSlice(this.pool(tracks, era, lang), tier);
     if (!pool.length) return null;
     const memory = Math.min(200, Math.floor(pool.length * 0.6));
     const fresh = pool.filter(t => !this.recent.includes(t.id));

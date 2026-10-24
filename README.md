@@ -9,6 +9,9 @@ Giriş yolları: Spotify, YouTube Music (Google girişi), giriş yapmadan YouTub
 
 ## Zorluklar
 
+Şarkılar zorluğa göre popülerlikle seçilir: listendeki şarkıların Deezer popülerlik puanı taranır,
+Kolay en popüler beşte birden, İmkânsız en az bilinen beşte birden şarkı çalar.
+
 Her zorlukta klipler aynı: **0.1 · 0.5 · 2 · 8 · 15 sn** ve cevap her zaman yazılarak verilir.
 Bilemezsen ya da atlarsan sonraki klibe geçilir.
 
