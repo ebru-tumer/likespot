@@ -102,7 +102,11 @@ export function parseVideo(v) {
 // Başlık ve kanal adından şarkı adı ve sanatçıyı çıkarır.
 function toTrack({ videoId, title, channel = '', isMusic, thumbs = {}, duration = 0 }) {
   const topic = /\s-\sTopic$/.test(channel);
-  if (!topic && !isMusic) return null;
+  // Müzik kategorisinde olmayan ama "Sanatçı - Şarkı" başlıklı ya da VEVO kanalındaki
+  // şarkı uzunluğundaki videoları da şarkı say (birçok klip "Eğlence" kategorisinde).
+  const songLength = !duration || (duration >= 60_000 && duration <= 600_000);
+  const looksLikeSong = songLength && (/\s[-–—]\s/.test(title || '') || /VEVO$/i.test(channel));
+  if (!topic && !isMusic && !looksLikeSong) return null;
 
   let name = title || '';
   let artist;
