@@ -93,12 +93,12 @@ export function buildIndex(question, tracks) {
 // Tüm eşleşmeleri bulur, en iyi eşleşenler üstte olacak şekilde sıralar:
 // adı yazılanla başlayanlar, sonra bir kelimesi yazılanla başlayanlar, sonra adında geçenler,
 // en son sadece sanatçı adı eşleşenler.
-export function suggest(index, text, limit = 12) {
+export function suggest(index, text, limit = 8) {
   return rankItems(index, text, limit);
 }
 
 // Aynı şarkı (ad + ilk sanatçı) birden fazla kaynaktan gelirse bir kez gösterilir.
-export function rankItems(items, text, limit = 12) {
+export function rankItems(items, text, limit = 8) {
   const query = normalize(text);
   const words = query.split(' ').filter(Boolean);
   if (!words.length) return [];

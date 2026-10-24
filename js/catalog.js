@@ -2,6 +2,11 @@
 // Deezer'ın herkese açık arama API'si kullanılır. Deezer CORS izin vermediği için JSONP ile çağrılır.
 import { normalize, cleanTitle } from './players.js';
 
+// Deezer popülerlik puanı (0-1.000.000). Altındakiler öneride gösterilmez; çok az bilinen
+// aynı isimli şarkılar listeyi doldurmasın. Bilinen Türkçe klasikler ~300-450 bin civarında.
+const MIN_TRACK_RANK = 300_000;
+const MIN_ARTIST_FANS = 10_000;
+
 const cache = new Map();
 let counter = 0;
 
@@ -37,14 +42,18 @@ export async function searchCatalog(question, text) {
   let items;
   if (question === 'artist') {
     const data = await jsonp(`https://api.deezer.com/search/artist?q=${enc}&limit=15`);
-    items = (data.data || []).map(a => ({ label: a.name, sub: '', value: a.name, search: normalize(a.name) }));
+    items = (data.data || [])
+      .filter(a => (a.nb_fan || 0) >= MIN_ARTIST_FANS)
+      .map(a => ({ label: a.name, sub: '', value: a.name, search: normalize(a.name) }));
   } else {
     // Hem genel arama hem de sanatçı araması: "50 cent" yazınca 50 Cent'in şarkıları da gelsin.
     const [general, byArtist] = await Promise.all([
       jsonp(`https://api.deezer.com/search?q=${enc}&limit=15`),
       jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(`artist:"${q}"`)}&limit=15`).catch(() => ({})),
     ]);
-    items = [...(general.data || []), ...(byArtist.data || [])].map(songItem);
+    items = [...(general.data || []), ...(byArtist.data || [])]
+      .filter(t => (t.rank || 0) >= MIN_TRACK_RANK)
+      .map(songItem);
   }
   cache.set(key, items);
   return items;
