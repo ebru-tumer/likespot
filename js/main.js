@@ -643,8 +643,7 @@ let suggestId = 0;
 function onInput() {
   clearTimeout(suggestTimer);
   const text = $('guess-input').value;
-  const minChars = DIFFICULTIES[settings.difficulty].minChars || 1;
-  if (text.replace(/\s/g, '').length < minChars) return hideSuggestions();
+  if (!text.trim()) return hideSuggestions();
   const qtype = state.round?.qtype || 'title';
   const id = ++suggestId;
   suggestTimer = setTimeout(async () => {
