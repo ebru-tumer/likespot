@@ -3,10 +3,11 @@ import { loadCachedLibrary, fetchLikedSongs, clearLibrary } from './library.js';
 import * as yt from './youtube.js';
 import { PreviewPlayer, SpotifyPlayer } from './players.js';
 import {
-  DIFFICULTIES, Picker, isCorrect, points, makeChoices, buildIndex, suggest, loadStats, saveStats,
+  DIFFICULTIES, Picker, isCorrect, points, makeChoices, buildIndex, suggest, rankItems, loadStats, saveStats,
 } from './game.js';
 import { DEMO_TRACKS } from './demo.js';
 import { tagLanguages, fetchArtistGenres } from './language.js';
+import { searchCatalog } from './catalog.js';
 
 const $ = id => document.getElementById(id);
 const KEY_SETTINGS = 'ls.settings';
@@ -178,6 +179,15 @@ function renderLibInfo(note = '') {
       ? `Çalma listesi · ${t.length.toLocaleString('tr')} şarkı`
       : `${t.length.toLocaleString('tr')} beğenilen şarkı${state.provider === 'youtube' ? ' (YouTube Music)' : ''}`;
   $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, note].filter(Boolean).join(' · ');
+}
+
+// Bilinen şarkıdan sonra bir üst zorluğa geçilir; İmkânsız'dan sonra Kolay'a dönülür.
+// Bilinemediyse aynı zorlukta kalınır.
+function nextSong() {
+  if (!state.round?.won) return newRound();
+  const keys = Object.keys(DIFFICULTIES);
+  const next = keys[(keys.indexOf(settings.difficulty) + 1) % keys.length];
+  setDifficulty(next);
 }
 
 function setDifficulty(key) {
@@ -458,6 +468,11 @@ function renderReveal() {
   $('btn-open').hidden = !t.url;
   $('btn-open').textContent = t.url.includes('spotify') ? "Spotify'da aç"
     : t.url.includes('youtube') ? "YouTube Music'te aç" : "Apple Music'te aç";
+  const keys = Object.keys(DIFFICULTIES);
+  const nextKey = keys[(keys.indexOf(settings.difficulty) + 1) % keys.length];
+  $('btn-next').textContent = !r.won ? 'Sonraki ⏎'
+    : nextKey === keys[0] ? `Baştan: ${DIFFICULTIES[nextKey].label} ⏎`
+    : `Sonraki: ${DIFFICULTIES[nextKey].label} ⏎`;
   $('btn-next').focus();
 }
 
@@ -578,6 +593,8 @@ function finish(won) {
 // ---------- Öneri kutusu ----------
 
 function hideSuggestions() {
+  clearTimeout(suggestTimer);
+  suggestId++;
   $('suggestions').hidden = true;
   state.suggestions = [];
   state.active = -1;
@@ -602,14 +619,31 @@ function renderSuggestions() {
   ul.hidden = !state.suggestions.length;
 }
 
+let suggestTimer;
+let suggestId = 0;
+
+// Öneriler tüm şarkılardan (Deezer kataloğu) gelir; kendi listendeki eşleşmeler de araya karışır,
+// böylece listede olmak doğru cevabı ele vermez. Katalog yanıt vermezse sadece kendi listen gösterilir.
 function onInput() {
+  clearTimeout(suggestTimer);
   const text = $('guess-input').value;
   const minChars = DIFFICULTIES[settings.difficulty].minChars || 1;
   if (!settings.search || text.replace(/\s/g, '').length < minChars) return hideSuggestions();
   const qtype = state.round?.qtype || 'title';
-  state.suggestions = suggest(state.index[qtype], $('guess-input').value);
-  state.active = state.suggestions.length ? 0 : -1;
-  renderSuggestions();
+  const id = ++suggestId;
+  suggestTimer = setTimeout(async () => {
+    const local = suggest(state.index[qtype], text, 4);
+    let catalog = [];
+    try {
+      catalog = await searchCatalog(qtype, text);
+    } catch {
+      // Katalog yoksa yerel öneriler yeter.
+    }
+    if (id !== suggestId) return;
+    state.suggestions = rankItems([...catalog, ...local], text);
+    state.active = state.suggestions.length ? 0 : -1;
+    renderSuggestions();
+  }, 250);
 }
 
 function onInputKey(e) {
@@ -662,7 +696,7 @@ function bindGame() {
   };
   $('btn-skip').onclick = skip;
   $('btn-skip-choice').onclick = skip;
-  $('btn-next').onclick = newRound;
+  $('btn-next').onclick = nextSong;
   $('btn-listen').onclick = () => playClip(15);
 
   $('answer-type').onsubmit = e => {
@@ -681,7 +715,7 @@ function bindGame() {
       e.preventDefault();
       $('btn-play').click();
     } else if (e.key === 'Enter' && state.round?.done && !typing && e.target.tagName !== 'BUTTON') {
-      newRound();
+      nextSong();
     }
   });
 
