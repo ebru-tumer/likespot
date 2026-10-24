@@ -5,6 +5,7 @@ import {
   DIFFICULTIES, Picker, isCorrect, points, makeChoices, buildIndex, suggest, loadStats, saveStats,
 } from './game.js';
 import { DEMO_TRACKS } from './demo.js';
+import { tagLanguages, fetchArtistGenres } from './language.js';
 
 const $ = id => document.getElementById(id);
 const KEY_SETTINGS = 'ls.settings';
@@ -14,7 +15,7 @@ const spotify = new SpotifyPlayer();
 const picker = new Picker();
 
 const settings = {
-  difficulty: 'expert', question: 'title', era: 'all', source: 'preview', search: true, volume: 90,
+  difficulty: 'expert', question: 'title', era: 'all', lang: 'all', source: 'preview', search: true, volume: 90,
 };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(KEY_SETTINGS))); } catch { /* varsayılanlar */ }
 
@@ -72,7 +73,8 @@ function initSetup() {
 
 async function loadLibrary(force = false) {
   const cached = !force && loadCachedLibrary();
-  if (cached?.tracks?.length) return cached;
+  // Eski önbellekte sanatçı kimlikleri yok; dil tespiti için yeniden çekilir.
+  if (cached?.tracks?.length && cached.tracks[0].artistIds) return cached;
   show('loading');
   $('loading-text').textContent = 'Beğenilen şarkılar yükleniyor…';
   $('loading-bar').style.width = '0%';
@@ -88,17 +90,29 @@ function startGame(tracks, demo) {
   state.tracks = tracks;
   state.demo = demo;
   state.index = { title: buildIndex('title', tracks), artist: buildIndex('artist', tracks) };
+  tagLanguages(tracks);
   show('game');
 
   $('btn-refresh').hidden = demo;
   $('btn-logout').textContent = demo ? 'Demodan çık' : 'Çıkış';
-  $('lib-info').textContent = demo
-    ? `Demo · ${tracks.length} popüler şarkı`
-    : `${tracks.length.toLocaleString('tr')} beğenilen şarkı`;
+  renderLibInfo();
+  if (!demo) {
+    fetchArtistGenres(tracks, (done, total, genres) => {
+      tagLanguages(tracks, genres);
+      renderLibInfo(done < total ? `dil taranıyor ${done}/${total}` : '');
+    });
+  }
 
   renderStats();
   renderOptions();
   newRound();
+}
+
+function renderLibInfo(note = '') {
+  const t = state.tracks;
+  const tr = t.filter(x => x.lang === 'tr').length;
+  const base = state.demo ? `Demo · ${t.length} popüler şarkı` : `${t.length.toLocaleString('tr')} beğenilen şarkı`;
+  $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, note].filter(Boolean).join(' · ');
 }
 
 function setDifficulty(key) {
@@ -137,6 +151,7 @@ function renderOptions() {
 
   $('opt-question').value = settings.question;
   $('opt-era').value = settings.era;
+  $('opt-lang').value = settings.lang;
   for (const b of $('qtabs').children) b.classList.toggle('active', b.dataset.q === settings.question);
 
   const source = state.demo ? 'preview' : settings.source;
@@ -149,7 +164,7 @@ function renderOptions() {
   const noSearch = !!DIFFICULTIES[settings.difficulty].noSearch;
   $('opt-search').checked = settings.search && !noSearch;
   $('opt-search').disabled = noSearch;
-  $('opt-search').parentElement.title = noSearch ? 'İmkânsız seviyesinde öneri kapalı' : '';
+  $('opt-search').parentElement.title = noSearch ? 'Bu zorlukta yazarken öneri çıkmaz' : '';
   $('opt-search').parentElement.classList.toggle('disabled', noSearch);
   $('opt-volume').value = settings.volume;
   applyVolume();
@@ -178,7 +193,7 @@ async function pickPlayable() {
   for (let i = 0; i < 12; i++) {
     let track = state.queued;
     state.queued = null;
-    if (!track) track = picker.next(state.tracks, settings.era);
+    if (!track) track = picker.next(state.tracks, settings.era, settings.lang);
     if (!track) return null;
     if (player() !== preview) return track;
     const loaded = await preview.load(track);
@@ -201,7 +216,7 @@ function enrich(track, match) {
 
 function queueNext() {
   if (player() !== preview) return;
-  const next = picker.next(state.tracks, settings.era);
+  const next = picker.next(state.tracks, settings.era, settings.lang);
   if (!next) return;
   state.queued = next;
   preview.load(next);
@@ -231,7 +246,7 @@ async function newRound() {
   setBusy(false);
   if (!track) {
     $('clip-note').textContent = 'Çalınabilir şarkı bulunamadı.';
-    showError('game-error', new Error('Bu filtrelerle önizlemesi olan şarkı bulunamadı. Dönemi "Tüm dönemler" yapmayı veya ses kaynağını değiştirmeyi dene.'));
+    showError('game-error', new Error('Bu filtrelerle çalınabilir şarkı bulunamadı. Dil veya dönem filtresini değiştirmeyi dene.'));
     return;
   }
 
@@ -244,12 +259,18 @@ async function newRound() {
     step: 0,
     guesses: [],
     wrongChoices: new Set(),
-    choices: d.mode === 'choice' ? makeChoices(qtype, track, state.tracks) : null,
+    choices: d.mode === 'choice' ? makeChoices(qtype, track, choicePool()) : null,
     done: false,
     won: false,
   };
   renderRound();
   queueNext();
+}
+
+// Şıklar da aynı dilden olsun ki tahmin kolaylaşmasın.
+function choicePool() {
+  const pool = picker.pool(state.tracks, 'all', settings.lang);
+  return pool.length >= 8 ? pool : state.tracks;
 }
 
 function currentClip() {
@@ -449,6 +470,10 @@ function advance(entry) {
   if (r.step >= d.clips.length) return finish(false);
   stopAudio();
   renderRound();
+  if (d.reshuffle) {
+    const maxClip = d.clips[d.clips.length - 1];
+    player().pickOffset(r.track, 'random', maxClip).then(offset => { r.offset = offset; });
+  }
 }
 
 function submitGuess(text) {
@@ -548,6 +573,7 @@ function changeSetting(key, value) {
 function bindGame() {
   $('opt-question').onchange = () => changeSetting('question', $('opt-question').value);
   $('opt-era').onchange = () => changeSetting('era', $('opt-era').value);
+  $('opt-lang').onchange = () => changeSetting('lang', $('opt-lang').value);
   for (const b of $('qtabs').children) b.onclick = () => changeSetting('question', b.dataset.q);
   for (const b of $('source-buttons').children) b.onclick = () => changeSetting('source', b.dataset.source);
   $('btn-any-era').onclick = () => changeSetting('era', 'all');

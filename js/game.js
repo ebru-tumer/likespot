@@ -1,20 +1,22 @@
 // Oyun kuralları: zorluklar, şarkı seçimi, cevap kontrolü ve istatistikler.
 import { normalize, cleanTitle } from './players.js';
 
-// Her zorlukta klipler aynı; zorluk cevap şekli, klibin yeri ve öneri kutusuyla artar.
+// Her zorlukta klipler aynı ve cevap hep yazılarak verilir.
+// Zorluk; klibin yeri, yazarken öneri çıkıp çıkmaması ve klibin her adımda yer değiştirmesiyle artar.
 const CLIPS = [0.1, 0.5, 2, 8, 15];
 
 export const DIFFICULTIES = {
-  easy:       { label: 'Kolay',    clips: CLIPS, mode: 'choice', offset: 'start',  mult: 1,
-                color: '#22c55e', on: '#06210f', hint: '4 şık · klip şarkının tanıdık yerinden' },
-  medium:     { label: 'Orta',     clips: CLIPS, mode: 'choice', offset: 'random', mult: 2,
-                color: '#facc15', on: '#2a2104', hint: '4 şık · klip şarkının rastgele bir yerinden' },
-  hard:       { label: 'Zor',      clips: CLIPS, mode: 'type',   offset: 'start',  mult: 3,
-                color: '#fb923c', on: '#2b1406', hint: 'Yazarak cevapla · tanıdık yerden' },
-  expert:     { label: 'Uzman',    clips: CLIPS, mode: 'type',   offset: 'random', mult: 4,
-                color: '#f87171', on: '#2b0b0b', hint: 'Yazarak cevapla · rastgele yerden' },
-  impossible: { label: 'İmkânsız', clips: CLIPS, mode: 'type',   offset: 'random', mult: 5, noSearch: true,
-                color: '#a855f7', on: '#ffffff', hint: 'Öneri yok, tam adını yaz · rastgele yerden' },
+  easy:       { label: 'Kolay',    clips: CLIPS, mode: 'type', offset: 'start',  mult: 1,
+                color: '#22c55e', on: '#06210f', hint: 'Yazarken öneri çıkar · şarkının tanıdık yerinden' },
+  medium:     { label: 'Orta',     clips: CLIPS, mode: 'type', offset: 'random', mult: 2,
+                color: '#facc15', on: '#2a2104', hint: 'Yazarken öneri çıkar · rastgele bir yerden' },
+  hard:       { label: 'Zor',      clips: CLIPS, mode: 'type', offset: 'start',  mult: 3, noSearch: true,
+                color: '#fb923c', on: '#2b1406', hint: 'Öneri yok · tanıdık yerden' },
+  expert:     { label: 'Uzman',    clips: CLIPS, mode: 'type', offset: 'random', mult: 4, noSearch: true,
+                color: '#f87171', on: '#2b0b0b', hint: 'Öneri yok · rastgele yerden' },
+  impossible: { label: 'İmkânsız', clips: CLIPS, mode: 'type', offset: 'random', mult: 5, noSearch: true,
+                reshuffle: true,
+                color: '#a855f7', on: '#ffffff', hint: 'Öneri yok · her adımda şarkının başka bir yeri' },
 };
 
 export const ERAS = {
@@ -110,14 +112,16 @@ export class Picker {
     this.bad = new Set();
   }
 
-  pool(tracks, era) {
+  // Dil filtresi kesindir; dönem filtresi eşleşme yoksa (ör. yılı bilinmeyen demo şarkıları) gevşer.
+  pool(tracks, era, lang = 'all') {
     const test = ERAS[era] || ERAS.all;
-    const filtered = tracks.filter(t => !this.bad.has(t.id) && test(t.year));
-    return filtered.length ? filtered : tracks.filter(t => !this.bad.has(t.id));
+    const usable = tracks.filter(t => !this.bad.has(t.id) && (lang === 'all' || t.lang === lang));
+    const filtered = usable.filter(t => test(t.year));
+    return filtered.length ? filtered : usable;
   }
 
-  next(tracks, era) {
-    const pool = this.pool(tracks, era);
+  next(tracks, era, lang) {
+    const pool = this.pool(tracks, era, lang);
     if (!pool.length) return null;
     const memory = Math.min(200, Math.floor(pool.length * 0.6));
     const fresh = pool.filter(t => !this.recent.includes(t.id));

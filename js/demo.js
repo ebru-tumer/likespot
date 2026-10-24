@@ -20,13 +20,21 @@ const SONGS = [
   ['Get Lucky', 'Daft Punk'],
   ['Umbrella', 'Rihanna'],
   ['Mr. Brightside', 'The Killers'],
-  ['Şımarık', 'Tarkan'],
-  ['Kuzu Kuzu', 'Tarkan'],
+  ['Şımarık', 'Tarkan', 'tr'],
+  ['Kuzu Kuzu', 'Tarkan', 'tr'],
   ['Wonderwall', 'Oasis'],
   ['Take On Me', 'a-ha'],
+  ['Gidiyorum', 'Sezen Aksu', 'tr'],
+  ['Firuze', 'Sezen Aksu', 'tr'],
+  ['Gülpembe', 'Barış Manço', 'tr'],
+  ['Senden Daha Güzel', 'Duman', 'tr'],
+  ['Bambaşka Biri', 'Ajda Pekkan', 'tr'],
+  ['Antidepresan', 'Mabel Matiz', 'tr'],
+  ['Dünyanın Sonuna Doğmuşum', 'maNga', 'tr'],
+  ['Ateşe Düştüm', 'Mert Demir', 'tr'],
 ];
 
-export const DEMO_TRACKS = SONGS.map(([name, artist], i) => ({
+export const DEMO_TRACKS = SONGS.map(([name, artist, langHint], i) => ({
   id: `demo-${i}`,
   uri: '',
   name,
@@ -36,4 +44,5 @@ export const DEMO_TRACKS = SONGS.map(([name, artist], i) => ({
   image: '',
   duration: 200000,
   url: '',
+  langHint,
 }));

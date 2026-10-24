@@ -5,18 +5,29 @@ Kısacık bir klip çalar; bilemezsen ya da atlarsan klip uzar.
 
 ## Zorluklar
 
-Her zorlukta klipler aynı: **0.1 · 0.5 · 2 · 8 · 15 sn**. Bilemezsen ya da atlarsan sonraki klibe geçilir.
+Her zorlukta klipler aynı: **0.1 · 0.5 · 2 · 8 · 15 sn** ve cevap her zaman yazılarak verilir.
+Bilemezsen ya da atlarsan sonraki klibe geçilir.
 
-| Zorluk   | Cevap                       | Klip yeri          | Puan çarpanı |
-|----------|-----------------------------|--------------------|--------------|
-| Kolay    | 4 şık                       | Önizlemenin başı   | ×1 |
-| Orta     | 4 şık                       | Rastgele           | ×2 |
-| Zor      | Yazarak (önerili)           | Önizlemenin başı   | ×3 |
-| Uzman    | Yazarak (önerili)           | Rastgele           | ×4 |
-| İmkânsız | Yazarak, öneri yok          | Rastgele           | ×5 |
+| Zorluk   | Yazarken öneri | Klip yeri                          | Puan çarpanı |
+|----------|----------------|------------------------------------|--------------|
+| Kolay    | Var            | Önizlemenin başı                   | ×1 |
+| Orta     | Var            | Rastgele                           | ×2 |
+| Zor      | Yok            | Önizlemenin başı                   | ×3 |
+| Uzman    | Yok            | Rastgele                           | ×4 |
+| İmkânsız | Yok            | Her adımda başka rastgele bir yer  | ×5 |
 
-Ayrıca: soru tipi (şarkı adı / sanatçı / karışık), dönem filtresi ve ses kaynağı seçilebilir.
+Ayrıca şunlar seçilebilir:
+- **Soru:** şarkı adı / sanatçı / karışık
+- **Dil:** Karışık / Türkçe / İngilizce
+- **Dönem** ve **ses kaynağı**
+
 Puan = kalan hak × zorluk çarpanı. İstatistikler tarayıcıda saklanır.
+
+### Dil tespiti
+
+Spotify şarkının dilini vermediği için tahmin edilir. Başlıktaki Türkçe harf ve kelimelere ve
+sanatçının Spotify türlerine (turkish pop, arabesk, anadolu rock…) bakılır. Bir sanatçının
+bir şarkısı Türkçe sayılırsa diğer şarkıları da Türkçe sayılır. "İngilizce" Türkçe olmayan her şarkıyı kapsar.
 
 ## Ses kaynakları
 
@@ -33,7 +44,7 @@ Puan = kalan hak × zorluk çarpanı. İstatistikler tarayıcıda saklanır.
 4. Siteyi başlat:
 
    ```bash
-   python -m http.server 5173 --bind 127.0.0.1
+   python serve.py
    ```
 
 5. Tarayıcıda `http://127.0.0.1:5173/` aç, Client ID'yi yapıştır ve **Spotify ile bağlan**'a bas.

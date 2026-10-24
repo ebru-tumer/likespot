@@ -30,6 +30,7 @@ function slimTrack({ added_at, track }) {
     uri: track.uri,
     name: track.name,
     artists: track.artists.map(a => a.name),
+    artistIds: track.artists.map(a => a.id),
     album: track.album?.name || '',
     year: parseInt(track.album?.release_date, 10) || null,
     image: (images[1] || images[0])?.url || '',
