@@ -61,6 +61,9 @@ export function login() {
       client_id: clientId,
       scope: SCOPE,
       callback: resp => {
+        if (resp.error === 'access_denied') {
+          return reject(new Error('Google girişi reddedildi. Bu Gmail hesabı izin listesinde olmayabilir: site sahibinden seni test kullanıcısı olarak eklemesini iste. İstersen giriş yapmadan çalma listesi linkiyle de oynayabilirsin.'));
+        }
         if (resp.error) return reject(new Error(`Google girişi başarısız: ${resp.error_description || resp.error}`));
         localStorage.setItem(KEY_TOKEN, JSON.stringify({
           access_token: resp.access_token,

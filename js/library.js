@@ -19,6 +19,9 @@ export async function api(path, options = {}, retried = false) {
     await new Promise(r => setTimeout(r, wait * 1000));
     return api(path, options, retried);
   }
+  if (res.status === 403) {
+    throw new Error('Spotify bu hesaba izin vermiyor: site sahibinin seni Spotify uygulamasının kullanıcı listesine eklemesi gerekiyor (en fazla 5 kişi). Ekledikten sonra çıkış yapıp tekrar bağlan.');
+  }
   if (!res.ok) throw new Error(`Spotify API hatası ${res.status}: ${await res.text()}`);
   return res.status === 204 ? null : res.json();
 }
