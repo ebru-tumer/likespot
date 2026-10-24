@@ -7,7 +7,7 @@
   <meta name="description" content="Spotify'da beğendiğin şarkılardan 0.1 saniyelik kliplerle tahmin oyunu.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%239d4edd'/><path d='M38 30v40l32-20z' fill='%23fff'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,800;1,900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,800;1,900&display=swap">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -116,12 +116,13 @@
         <nav class="diff-pills" id="difficulty" role="tablist" aria-label="Zorluk"></nav>
 
         <div class="timeline" id="timeline">
+          <div id="tl-ticks"></div>
           <div class="tl-unlocked" id="tl-unlocked"></div>
           <div class="tl-play" id="clip-bar"></div>
           <div class="tl-marker" id="tl-marker"><span id="tl-label">2s</span></div>
         </div>
 
-        <p class="question" id="question">Bu şarkının adı ne?</p>
+        <p class="sr-only" id="question" aria-live="polite">Bu şarkının adı ne?</p>
 
         <div class="player">
           <span class="player-side"></span>
@@ -132,7 +133,7 @@
           </button>
           <span class="player-side clip-length" id="clip-length">2s</span>
         </div>
-        <p class="clip-note" id="clip-note">Çalmak için bas · boşluk tuşu</p>
+        <p class="sr-only" id="clip-note" aria-live="polite">Çalmak için bas · boşluk tuşu</p>
 
         <form class="answer" id="answer-type" autocomplete="off">
           <div class="combo">
@@ -196,7 +197,7 @@
           </button>
           <button class="opt" type="button" data-source="spotify">
             <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            Spotify (tam şarkı)
+            Spotify'dan çal
           </button>
         </div>
       </div>

@@ -133,6 +133,8 @@ function renderOptions() {
     }
   }
 
+  document.documentElement.style.setProperty('--accent', DIFFICULTIES[settings.difficulty].color);
+
   $('opt-question').value = settings.question;
   $('opt-era').value = settings.era;
   for (const b of $('qtabs').children) b.classList.toggle('active', b.dataset.q === settings.question);
@@ -270,6 +272,15 @@ function renderTimeline() {
   $('tl-unlocked').style.width = `${pos}%`;
   $('tl-marker').style.left = `${pos}%`;
   $('tl-label').textContent = fmt(sec);
+
+  const ticks = $('tl-ticks');
+  ticks.innerHTML = '';
+  for (const c of clips.slice(0, -1)) {
+    const tick = document.createElement('div');
+    tick.className = 'tl-tick';
+    tick.style.left = `${timelinePos(c)}%`;
+    ticks.appendChild(tick);
+  }
 }
 
 function renderRound() {
