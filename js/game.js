@@ -2,21 +2,21 @@
 import { normalize, cleanTitle } from './players.js';
 
 // Her zorlukta klipler aynı ve cevap hep yazılarak verilir.
-// Zorluk; klibin yeri, yazarken öneri çıkıp çıkmaması ve klibin her adımda yer değiştirmesiyle artar.
+// Zorluk; klibin yeri, önerilerin kaç harften sonra çıktığı ve klibin her adımda yer değiştirmesiyle artar.
 const CLIPS = [0.1, 0.5, 2, 8, 15];
 
 export const DIFFICULTIES = {
-  easy:       { label: 'Kolay',    clips: CLIPS, mode: 'type', offset: 'start',  mult: 1,
-                color: '#22c55e', on: '#06210f', hint: 'Yazarken öneri çıkar · şarkının tanıdık yerinden' },
-  medium:     { label: 'Orta',     clips: CLIPS, mode: 'type', offset: 'random', mult: 2,
-                color: '#facc15', on: '#2a2104', hint: 'Yazarken öneri çıkar · rastgele bir yerden' },
-  hard:       { label: 'Zor',      clips: CLIPS, mode: 'type', offset: 'start',  mult: 3, noSearch: true,
-                color: '#fb923c', on: '#2b1406', hint: 'Öneri yok · tanıdık yerden' },
-  expert:     { label: 'Uzman',    clips: CLIPS, mode: 'type', offset: 'random', mult: 4, noSearch: true,
-                color: '#f87171', on: '#2b0b0b', hint: 'Öneri yok · rastgele yerden' },
-  impossible: { label: 'İmkânsız', clips: CLIPS, mode: 'type', offset: 'random', mult: 5, noSearch: true,
+  easy:       { label: 'Kolay',    clips: CLIPS, mode: 'type', offset: 'start',  mult: 1, minChars: 1,
+                color: '#22c55e', on: '#06210f', hint: 'Öneriler ilk harften · şarkının tanıdık yerinden' },
+  medium:     { label: 'Orta',     clips: CLIPS, mode: 'type', offset: 'random', mult: 2, minChars: 1,
+                color: '#facc15', on: '#2a2104', hint: 'Öneriler ilk harften · rastgele bir yerden' },
+  hard:       { label: 'Zor',      clips: CLIPS, mode: 'type', offset: 'start',  mult: 3, minChars: 2,
+                color: '#fb923c', on: '#2b1406', hint: 'Öneriler 2 harften sonra · tanıdık yerden' },
+  expert:     { label: 'Uzman',    clips: CLIPS, mode: 'type', offset: 'random', mult: 4, minChars: 3,
+                color: '#f87171', on: '#2b0b0b', hint: 'Öneriler 3 harften sonra · rastgele yerden' },
+  impossible: { label: 'İmkânsız', clips: CLIPS, mode: 'type', offset: 'random', mult: 5, minChars: 3,
                 reshuffle: true,
-                color: '#a855f7', on: '#ffffff', hint: 'Öneri yok · her adımda şarkının başka bir yeri' },
+                color: '#a855f7', on: '#ffffff', hint: 'Öneriler 3 harften sonra · her adımda şarkının başka bir yeri' },
 };
 
 export const ERAS = {

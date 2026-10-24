@@ -227,11 +227,7 @@ function renderOptions() {
     b.title = b.disabled ? 'Sadece Spotify ile bağlanınca kullanılabilir' : '';
   }
 
-  const noSearch = !!DIFFICULTIES[settings.difficulty].noSearch;
-  $('opt-search').checked = settings.search && !noSearch;
-  $('opt-search').disabled = noSearch;
-  $('opt-search').parentElement.title = noSearch ? 'Bu zorlukta yazarken öneri çıkmaz' : '';
-  $('opt-search').parentElement.classList.toggle('disabled', noSearch);
+  $('opt-search').checked = settings.search;
   $('opt-volume').value = settings.volume;
   applyVolume();
 }
@@ -607,7 +603,9 @@ function renderSuggestions() {
 }
 
 function onInput() {
-  if (!settings.search || DIFFICULTIES[settings.difficulty].noSearch) return hideSuggestions();
+  const text = $('guess-input').value;
+  const minChars = DIFFICULTIES[settings.difficulty].minChars || 1;
+  if (!settings.search || text.replace(/\s/g, '').length < minChars) return hideSuggestions();
   const qtype = state.round?.qtype || 'title';
   state.suggestions = suggest(state.index[qtype], $('guess-input').value);
   state.active = state.suggestions.length ? 0 : -1;
