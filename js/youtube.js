@@ -186,11 +186,8 @@ export function playlistIdFrom(text) {
 }
 
 // Herkese açık ya da liste dışı bir çalma listesini giriş yapmadan okur (API anahtarıyla).
-export async function fetchPlaylist(playlistId, onProgress) {
-  if (!GOOGLE_API_KEY) throw new Error('Çalma listesi özelliği henüz ayarlanmadı (Google API anahtarı eksik).');
-  if (playlistId === 'LM' || playlistId === 'LL') {
-    throw new Error('"Beğenilen müzikler" listesi gizli olduğu için okunamıyor. Herkese açık ya da liste dışı bir çalma listesinin linkini yapıştır.');
-  }
+// Bir çalma listesinin şarkılarını okur. auth: { key } (herkese açık) ya da { token } (kendi listeleri).
+async function fetchPlaylistItems(playlistId, auth, onProgress) {
   const tracks = [];
   const seen = new Set();
   let scanned = 0;
@@ -198,10 +195,14 @@ export async function fetchPlaylist(playlistId, onProgress) {
   // YouTube Music'in otomatik listeleri (RDCLAK…) bazen hiç bitmeyen sayfa döndürür:
   // yeni şarkı gelmeyen bir sayfada ya da 5000 öğede dururuz.
   for (let page = 0; page < 100; page++) {
-    const params = new URLSearchParams({ part: 'snippet', playlistId, maxResults: '50', key: GOOGLE_API_KEY });
+    const params = new URLSearchParams({ part: 'snippet', playlistId, maxResults: '50' });
+    if (auth.key) params.set('key', auth.key);
     if (pageToken) params.set('pageToken', pageToken);
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?${params}`);
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?${params}`, {
+      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+    });
     if (res.status === 404) throw new Error('Çalma listesi bulunamadı. Listenin "Herkese açık" ya da "Liste dışı" olduğundan emin ol.');
+    if (res.status === 401) throw new Error('YouTube oturumunun süresi doldu, tekrar bağlan.');
     if (!res.ok) throw new Error(`YouTube API hatası ${res.status}: ${await res.text()}`);
     const data = await res.json();
     let added = 0;
@@ -221,8 +222,49 @@ export async function fetchPlaylist(playlistId, onProgress) {
     pageToken = data.nextPageToken;
     if (!pageToken || !added) break;
   }
+  return tracks;
+}
+
+export async function fetchPlaylist(playlistId, onProgress) {
+  if (!GOOGLE_API_KEY) throw new Error('Çalma listesi özelliği henüz ayarlanmadı (Google API anahtarı eksik).');
+  if (playlistId === 'LM' || playlistId === 'LL') {
+    throw new Error('"Beğenilen müzikler" listesi gizli olduğu için okunamıyor. Herkese açık ya da liste dışı bir çalma listesinin linkini yapıştır.');
+  }
+  const tracks = await fetchPlaylistItems(playlistId, { key: GOOGLE_API_KEY }, onProgress);
   const lib = saveLibrary('playlist', tracks);
   lib.playlistId = playlistId;
   localStorage.setItem('ls.playlistId', playlistId);
   return lib;
+}
+
+function validToken() {
+  const token = readToken();
+  if (!token || Date.now() >= token.expires_at) throw new Error('YouTube oturumunun süresi doldu, tekrar bağlan.');
+  return token.access_token;
+}
+
+// Giriş yapan kişinin kendi YouTube (Music) çalma listeleri.
+export async function fetchMyPlaylists() {
+  const token = validToken();
+  const lists = [];
+  let pageToken = '';
+  do {
+    const params = new URLSearchParams({ part: 'snippet,contentDetails', mine: 'true', maxResults: '50' });
+    if (pageToken) params.set('pageToken', pageToken);
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/playlists?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) throw new Error('YouTube oturumunun süresi doldu, tekrar bağlan.');
+    if (!res.ok) throw new Error(`YouTube API hatası ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    for (const p of data.items || []) {
+      lists.push({ id: p.id, name: p.snippet?.title || 'Adsız liste', count: p.contentDetails?.itemCount ?? null });
+    }
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  return lists;
+}
+
+export function fetchMyPlaylistTracks(id) {
+  return fetchPlaylistItems(id, { token: validToken() });
 }

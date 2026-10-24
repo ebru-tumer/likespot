@@ -6,6 +6,8 @@ const SCOPES = [
   'streaming',
   'user-read-playback-state',
   'user-modify-playback-state',
+  'playlist-read-private',
+  'playlist-read-collaborative',
 ].join(' ');
 
 const KEY_CLIENT = 'ls.clientId';
@@ -34,10 +36,16 @@ function saveToken(data, prev) {
   const token = {
     access_token: data.access_token,
     refresh_token: data.refresh_token || prev?.refresh_token,
+    scope: data.scope || prev?.scope || '',
     expires_at: Date.now() + (data.expires_in - 60) * 1000,
   };
   localStorage.setItem(KEY_TOKEN, JSON.stringify(token));
   return token;
+}
+
+// Eski girişlerde çalma listesi izni yok; o durumda yeniden bağlanmak gerekir.
+export function hasPlaylistScope() {
+  return (readToken()?.scope || '').includes('playlist-read-private');
 }
 
 export function isLoggedIn() {

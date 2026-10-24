@@ -58,6 +58,10 @@
           <select id="opt-provider" aria-label="Müzik hesabı"></select>
         </div>
       </div>
+      <div class="group" id="sources-group" hidden>
+        <p class="label">Şarkılar</p>
+        <div class="sources" id="sources"></div>
+      </div>
       <hr>
       <div class="group diff-group">
         <p class="label">Zorluk</p>
@@ -271,7 +275,7 @@
           if (!cached) return;
         }
         const files = ['./', 'index.html', 'css/style.css', 'auth', 'catalog', 'config', 'demo', 'game',
-          'language', 'library', 'main', 'players', 'popularity', 'youtube'].map(f => f.includes('.') || f === './' ? f : `js/${f}.js`);
+          'language', 'library', 'main', 'players', 'popularity', 'sources', 'youtube'].map(f => f.includes('.') || f === './' ? f : `js/${f}.js`);
         await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
         location.reload();
       } catch { /* sürüm kontrolü yapılamazsa sayfa olduğu gibi çalışır */ }
