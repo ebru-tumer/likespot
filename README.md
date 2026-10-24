@@ -5,13 +5,15 @@ Kısacık bir klip çalar; bilemezsen ya da atlarsan klip uzar.
 
 ## Zorluklar
 
-| Zorluk   | Klipler (sn)          | Cevap          | Klip yeri          | Puan çarpanı |
-|----------|-----------------------|----------------|--------------------|--------------|
-| Kolay    | 2 · 4 · 8 · 15 · 25   | 4 şık          | Önizlemenin başı   | ×1 |
-| Orta     | 1 · 2 · 4 · 8 · 15    | Yazarak        | Önizlemenin başı   | ×2 |
-| Zor      | 0.5 · 1 · 2 · 8 · 15  | Yazarak        | Önizlemenin başı   | ×3 |
-| Uzman    | 0.1 · 0.5 · 2 · 8 · 15| Yazarak        | Rastgele           | ×4 |
-| İmkânsız | 0.1 · 0.2 · 0.5 · 1 · 2| Yazarak       | Rastgele           | ×5 |
+Her zorlukta klipler aynı: **0.1 · 0.5 · 2 · 8 · 15 sn**. Bilemezsen ya da atlarsan sonraki klibe geçilir.
+
+| Zorluk   | Cevap                       | Klip yeri          | Puan çarpanı |
+|----------|-----------------------------|--------------------|--------------|
+| Kolay    | 4 şık                       | Önizlemenin başı   | ×1 |
+| Orta     | 4 şık                       | Rastgele           | ×2 |
+| Zor      | Yazarak (önerili)           | Önizlemenin başı   | ×3 |
+| Uzman    | Yazarak (önerili)           | Rastgele           | ×4 |
+| İmkânsız | Yazarak, öneri yok          | Rastgele           | ×5 |
 
 Ayrıca: soru tipi (şarkı adı / sanatçı / karışık), dönem filtresi ve ses kaynağı seçilebilir.
 Puan = kalan hak × zorluk çarpanı. İstatistikler tarayıcıda saklanır.

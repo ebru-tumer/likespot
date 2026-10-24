@@ -1,17 +1,20 @@
 // Oyun kuralları: zorluklar, şarkı seçimi, cevap kontrolü ve istatistikler.
 import { normalize, cleanTitle } from './players.js';
 
+// Her zorlukta klipler aynı; zorluk cevap şekli, klibin yeri ve öneri kutusuyla artar.
+const CLIPS = [0.1, 0.5, 2, 8, 15];
+
 export const DIFFICULTIES = {
-  easy:       { label: 'Kolay',    clips: [2, 4, 8, 15, 25],     mode: 'choice', offset: 'start',  mult: 1,
-                color: '#22c55e', on: '#06210f', hint: '4 şık · 2 saniyeden başlar' },
-  medium:     { label: 'Orta',     clips: [1, 2, 4, 8, 15],      mode: 'type',   offset: 'start',  mult: 2,
-                color: '#facc15', on: '#2a2104', hint: 'Yazarak cevapla · 1 saniyeden başlar' },
-  hard:       { label: 'Zor',      clips: [0.5, 1, 2, 8, 15],    mode: 'type',   offset: 'start',  mult: 3,
-                color: '#fb923c', on: '#2b1406', hint: 'Yazarak cevapla · 0.5 saniyeden başlar' },
-  expert:     { label: 'Uzman',    clips: [0.1, 0.5, 2, 8, 15],  mode: 'type',   offset: 'random', mult: 4,
-                color: '#f87171', on: '#2b0b0b', hint: '0.1 saniye · şarkının rastgele bir yerinden' },
-  impossible: { label: 'İmkânsız', clips: [0.1, 0.2, 0.5, 1, 2], mode: 'type',   offset: 'random', mult: 5,
-                color: '#a855f7', on: '#ffffff', hint: 'En fazla 2 saniye · rastgele yerden' },
+  easy:       { label: 'Kolay',    clips: CLIPS, mode: 'choice', offset: 'start',  mult: 1,
+                color: '#22c55e', on: '#06210f', hint: '4 şık · klip şarkının tanıdık yerinden' },
+  medium:     { label: 'Orta',     clips: CLIPS, mode: 'choice', offset: 'random', mult: 2,
+                color: '#facc15', on: '#2a2104', hint: '4 şık · klip şarkının rastgele bir yerinden' },
+  hard:       { label: 'Zor',      clips: CLIPS, mode: 'type',   offset: 'start',  mult: 3,
+                color: '#fb923c', on: '#2b1406', hint: 'Yazarak cevapla · tanıdık yerden' },
+  expert:     { label: 'Uzman',    clips: CLIPS, mode: 'type',   offset: 'random', mult: 4,
+                color: '#f87171', on: '#2b0b0b', hint: 'Yazarak cevapla · rastgele yerden' },
+  impossible: { label: 'İmkânsız', clips: CLIPS, mode: 'type',   offset: 'random', mult: 5, noSearch: true,
+                color: '#a855f7', on: '#ffffff', hint: 'Öneri yok, tam adını yaz · rastgele yerden' },
 };
 
 export const ERAS = {

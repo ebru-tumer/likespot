@@ -182,19 +182,22 @@ svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; s
 .toggle input:checked + .switch::after { transform: translateX(10px); }
 .toggle input:focus-visible + .switch { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 
+.toggle.disabled { opacity: 0.45; cursor: not-allowed; }
+
 .chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .chip {
-  padding: 6px 0;
-  border-radius: 7px;
-  background: var(--tint-2);
-  color: var(--accent-2);
-  font-size: 10px;
-  font-weight: 600;
+  padding: 8px 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 13%, #0a0a0d);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
   text-align: center;
   font-variant-numeric: tabular-nums;
+  transition: background 0.2s, color 0.2s, opacity 0.2s;
 }
-.chip.used { color: var(--dim); background: var(--surface); text-decoration: line-through; }
-.chip.current { background: var(--tint); box-shadow: inset 0 0 0 1px var(--accent); }
+.chip.used { opacity: 0.35; }
+.chip.current { box-shadow: inset 0 0 0 1px var(--accent); }
 .chip.won { background: var(--accent); color: var(--ink); }
 
 input[type=range] {

@@ -146,7 +146,11 @@ function renderOptions() {
     b.title = b.disabled ? 'Demo modunda yalnızca önizleme kullanılır' : '';
   }
 
-  $('opt-search').checked = settings.search;
+  const noSearch = !!DIFFICULTIES[settings.difficulty].noSearch;
+  $('opt-search').checked = settings.search && !noSearch;
+  $('opt-search').disabled = noSearch;
+  $('opt-search').parentElement.title = noSearch ? 'İmkânsız seviyesinde öneri kapalı' : '';
+  $('opt-search').parentElement.classList.toggle('disabled', noSearch);
   $('opt-volume').value = settings.volume;
   applyVolume();
 }
@@ -511,7 +515,7 @@ function renderSuggestions() {
 }
 
 function onInput() {
-  if (!settings.search) return hideSuggestions();
+  if (!settings.search || DIFFICULTIES[settings.difficulty].noSearch) return hideSuggestions();
   const qtype = state.round?.qtype || 'title';
   state.suggestions = suggest(state.index[qtype], $('guess-input').value);
   state.active = state.suggestions.length ? 0 : -1;
