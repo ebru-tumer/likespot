@@ -1,5 +1,5 @@
 import * as auth from './auth.js';
-import { loadCachedLibrary, fetchLikedSongs, clearLibrary, hasLibrary } from './library.js';
+import { loadCachedLibrary, fetchLikedSongs, clearLibrary, hasLibrary, mergeLibraries } from './library.js';
 import * as yt from './youtube.js';
 import { PreviewPlayer, SpotifyPlayer } from './players.js';
 import {
@@ -160,16 +160,23 @@ function renderProviders() {
     const opt = new Option(connected || key === state.provider ? label : `${label} (bağlan)`, key);
     sel.add(opt);
   }
+  // İki hesap da bağlıysa ikisinden ortak soru sorulabilir.
+  if (hasLibrary('spotify') && hasLibrary('youtube')) sel.add(new Option('İkisi birden', 'both'));
   if (state.provider === 'demo') sel.add(new Option('Demo', 'demo'));
   sel.value = state.provider;
 }
 
 // Seçilen hesaba geçer: listesi kayıtlıysa hemen, değilse önce bağlanır.
+function bothTracks() {
+  return mergeLibraries(loadCachedLibrary('spotify')?.tracks || [], loadCachedLibrary('youtube')?.tracks || []);
+}
+
 async function switchProvider(p) {
   if (p === state.provider) return;
   stopAudio();
   $('game-error').hidden = true;
   try {
+    if (p === 'both') return startGame(bothTracks(), 'both');
     if (p === 'spotify') {
       if (!auth.isLoggedIn()) {
         localStorage.setItem(KEY_PROVIDER, 'spotify');
@@ -210,9 +217,10 @@ function startGame(tracks, provider) {
   $('btn-refresh').hidden = demo;
   $('btn-logout').textContent = {
     demo: 'Demodan çık', spotify: "Spotify'dan çık", youtube: "YouTube'dan çık", playlist: 'Listeyi kapat',
+    both: 'Tek hesaba dön',
   }[provider];
   renderLibInfo();
-  if (provider === 'spotify') {
+  if (provider === 'spotify' || provider === 'both') {
     fetchArtistGenres(tracks, (done, total, genres) => {
       tagLanguages(tracks, genres);
       notes.lang = done < total ? `dil taranıyor ${done}/${total}` : '';
@@ -240,7 +248,8 @@ function renderLibInfo() {
     ? `Demo · ${t.length} popüler şarkı`
     : state.provider === 'playlist'
       ? `Çalma listesi · ${t.length.toLocaleString('tr')} şarkı`
-      : `${t.length.toLocaleString('tr')} beğenilen şarkı${state.provider === 'youtube' ? ' (YouTube Music)' : ''}`;
+      : `${t.length.toLocaleString('tr')} beğenilen şarkı${
+        { youtube: ' (YouTube Music)', both: ' (Spotify + YouTube Music)' }[state.provider] || ''}`;
   $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, notes.lang, notes.pop]
     .filter(Boolean).join(' · ');
 }
@@ -789,11 +798,12 @@ function bindGame() {
         startGame(lib.tracks, 'playlist');
         return;
       }
-      if (state.provider === 'youtube') {
+      if (state.provider === 'youtube' || state.provider === 'both') {
         if (!yt.hasValidToken()) await yt.login();
         const lib = await loadYoutubeLibrary();
-        startGame(lib.tracks, 'youtube');
-        return;
+        if (state.provider === 'youtube') return startGame(lib.tracks, 'youtube');
+        await loadLibrary(true);
+        return startGame(bothTracks(), 'both');
       }
       const lib = await loadLibrary(true);
       startGame(lib.tracks, 'spotify');
@@ -808,6 +818,8 @@ function bindGame() {
   $('btn-logout').onclick = () => {
     stopAudio();
     const p = state.provider;
+    // "İkisi birden" modunda çıkış yerine tek hesaba (Spotify) dönülür.
+    if (p === 'both') return switchProvider('spotify');
     if (p === 'spotify') auth.logout();
     if (p === 'youtube') yt.logout();
     if (p === 'playlist') localStorage.removeItem('ls.playlistId');
@@ -825,6 +837,9 @@ async function main() {
   try {
     if (await auth.handleRedirect()) localStorage.setItem(KEY_PROVIDER, 'spotify');
     const provider = localStorage.getItem(KEY_PROVIDER) || (auth.isLoggedIn() ? 'spotify' : '');
+    if (provider === 'both' && hasLibrary('spotify') && hasLibrary('youtube')) {
+      return startGame(bothTracks(), 'both');
+    }
     if (provider === 'youtube' || provider === 'playlist') {
       const cached = loadCachedLibrary(provider);
       if (cached?.tracks?.length) return startGame(cached.tracks, provider);
