@@ -104,3 +104,37 @@ export function saveLibrary(provider, tracks) {
   }
   return library;
 }
+
+// Kullanıcının kendi (ve ortak) çalma listeleri. Spotify geliştirici modunda başkasının
+// listesinin şarkıları okunamadığı için sadece sahibi olunan ya da ortak listeler döner.
+export async function fetchSpotifyPlaylists() {
+  let me = null;
+  try { me = (await api('/me')).id; } catch { /* profil okunamazsa hepsini göster */ }
+  const lists = [];
+  let next = '/me/playlists?limit=50';
+  while (next) {
+    const page = await api(next);
+    for (const p of page.items || []) {
+      if (!p) continue;
+      if (me && p.owner?.id !== me && !p.collaborative) continue;
+      lists.push({ id: p.id, name: p.name, count: (p.items || p.tracks)?.total ?? null });
+    }
+    next = page.next;
+  }
+  return lists;
+}
+
+export async function fetchSpotifyPlaylistTracks(id) {
+  const tracks = [];
+  let next = `/playlists/${id}/items?limit=50`;
+  while (next) {
+    const page = await api(next);
+    for (const entry of page.items || []) {
+      // Şubat 2026'dan beri alan adı "track" yerine "item".
+      const track = entry.item || entry.track;
+      if (track?.id && track.type === 'track') tracks.push(slimTrack({ added_at: entry.added_at, track }));
+    }
+    next = page.next;
+  }
+  return tracks;
+}

@@ -159,6 +159,33 @@ svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; s
 .side-link svg { width: 12px; height: 12px; }
 .links { gap: 10px; }
 
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.sources-head { margin: 6px 0 2px; font-size: 10px; font-weight: 600; color: var(--muted); }
+.sources-note { margin: 2px 0; font-size: 11px; color: var(--dim); }
+.source {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.source:hover { background: var(--surface); }
+.source input { margin: 0; accent-color: var(--accent); }
+.source span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source small { color: var(--dim); font-size: 10px; font-variant-numeric: tabular-nums; }
+.source.loading { opacity: 0.5; pointer-events: none; }
+.source.loading small::after { content: ' …'; }
+
 .chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .chip {
   padding: 8px 0;

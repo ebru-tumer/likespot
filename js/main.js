@@ -1,5 +1,8 @@
 import * as auth from './auth.js';
-import { loadCachedLibrary, fetchLikedSongs, clearLibrary, hasLibrary, mergeLibraries } from './library.js';
+import {
+  loadCachedLibrary, fetchLikedSongs, clearLibrary, hasLibrary, mergeLibraries,
+  fetchSpotifyPlaylists, fetchSpotifyPlaylistTracks,
+} from './library.js';
 import * as yt from './youtube.js';
 import { PreviewPlayer, SpotifyPlayer } from './players.js';
 import {
@@ -9,6 +12,7 @@ import { DEMO_TRACKS } from './demo.js';
 import { tagLanguages, fetchArtistGenres } from './language.js';
 import { searchCatalog } from './catalog.js';
 import { tagPopularity, fetchPopularity } from './popularity.js';
+import * as sources from './sources.js';
 
 const $ = id => document.getElementById(id);
 const KEY_SETTINGS = 'ls.settings';
@@ -202,15 +206,146 @@ async function switchProvider(p) {
   }
 }
 
+// ---------- Çalma listesi seçimi ----------
+
+const listTried = new Set();
+
+function sourceProviders() {
+  if (state.provider === 'both') return ['spotify', 'youtube'];
+  return state.provider === 'spotify' || state.provider === 'youtube' ? [state.provider] : [];
+}
+
+function renderSources() {
+  const box = $('sources');
+  box.innerHTML = '';
+  const providers = sourceProviders();
+  $('sources-group').hidden = !providers.length;
+  for (const p of providers) {
+    if (providers.length > 1) {
+      const h = document.createElement('p');
+      h.className = 'sources-head';
+      h.textContent = PROVIDERS[p];
+      box.appendChild(h);
+    }
+    const sel = sources.getSelection(p);
+    const liked = loadCachedLibrary(p)?.tracks?.length ?? 0;
+    box.appendChild(sourceRow(p, sources.LIKED, 'Beğenilen şarkılar', liked, sel.includes(sources.LIKED)));
+    const lists = sources.getPlaylists(p);
+    if (lists) {
+      for (const l of lists) {
+        const count = sources.getPlaylistTracks(p, l.id)?.length ?? l.count;
+        box.appendChild(sourceRow(p, l.id, l.name, count, sel.includes(l.id)));
+      }
+      if (!lists.length) box.appendChild(sourceNote('Çalma listen yok.'));
+    } else {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'side-link';
+      b.textContent = 'Çalma listelerini göster';
+      b.onclick = () => loadPlaylistList(p, true);
+      box.appendChild(b);
+      // Giriş geçerliyse listeleri sormadan getir.
+      if (!listTried.has(p)) {
+        listTried.add(p);
+        loadPlaylistList(p, false);
+      }
+    }
+  }
+}
+
+function sourceNote(text) {
+  const n = document.createElement('p');
+  n.className = 'sources-note';
+  n.textContent = text;
+  return n;
+}
+
+function sourceRow(provider, id, name, count, checked) {
+  const label = document.createElement('label');
+  label.className = 'source';
+  label.innerHTML = '<input type="checkbox"><span></span><small></small>';
+  const box = label.firstChild;
+  box.checked = checked;
+  label.children[1].textContent = name;
+  label.children[2].textContent = count ?? '';
+  label.title = name;
+  box.onchange = () => toggleSource(provider, id, box.checked, label);
+  return label;
+}
+
+// interactive: bir tıklamadan geldiyse gerekirse giriş penceresi açılabilir.
+async function loadPlaylistList(p, interactive) {
+  try {
+    if (p === 'spotify') {
+      if (!auth.hasPlaylistScope()) {
+        if (!interactive) return;
+        // Eski girişte çalma listesi izni yok: Spotify'a yeniden bağlan, dönünce listeler gelir.
+        await auth.login();
+        return;
+      }
+      sources.savePlaylists(p, await fetchSpotifyPlaylists());
+    } else {
+      if (!yt.hasValidToken()) {
+        if (!interactive) return;
+        await yt.login();
+      }
+      sources.savePlaylists(p, await yt.fetchMyPlaylists());
+    }
+    renderSources();
+  } catch (err) {
+    if (interactive) showError('game-error', err);
+  }
+}
+
+async function toggleSource(provider, id, checked, row) {
+  const sel = sources.getSelection(provider).filter(x => x !== id);
+  if (checked) sel.push(id);
+  if (!sel.length) {
+    row.firstChild.checked = true;
+    return showError('game-error', new Error('En az bir liste seçili olmalı.'));
+  }
+  $('game-error').hidden = true;
+  try {
+    if (checked && id !== sources.LIKED && !sources.getPlaylistTracks(provider, id)) {
+      row.classList.add('loading');
+      let tracks;
+      if (provider === 'spotify') {
+        tracks = await fetchSpotifyPlaylistTracks(id);
+      } else {
+        if (!yt.hasValidToken()) await yt.login();
+        tracks = await yt.fetchMyPlaylistTracks(id);
+      }
+      if (!tracks.length) throw new Error('Bu çalma listesinden şarkı okunamadı.');
+      sources.savePlaylistTracks(provider, id, tracks);
+    }
+    sources.setSelection(provider, sel);
+    startGame(state.tracks, state.provider);
+  } catch (err) {
+    renderSources();
+    showError('game-error', err);
+  }
+}
+
 // ---------- Oyun ----------
+
+// Hesabın seçili kaynakları (beğenilenler + çalma listeleri); seçimden şarkı çıkmazsa verilen liste.
+function selectedTracks(provider, fallback) {
+  let tracks = [];
+  if (provider === 'spotify' || provider === 'youtube') tracks = sources.tracksFor(provider);
+  if (provider === 'both') tracks = mergeLibraries(sources.tracksFor('spotify'), sources.tracksFor('youtube'));
+  return tracks.length ? tracks : fallback;
+}
 
 function startGame(tracks, provider) {
   const demo = provider === 'demo';
+  tracks = selectedTracks(provider, tracks);
   state.tracks = tracks;
+  state.queued = null;
   state.provider = provider;
   if (!demo) localStorage.setItem(KEY_PROVIDER, provider);
   state.index = { title: buildIndex('title', tracks), artist: buildIndex('artist', tracks) };
   renderProviders();
+  renderSources();
   tagLanguages(tracks);
   show('game');
 
@@ -248,8 +383,8 @@ function renderLibInfo() {
     ? `Demo · ${t.length} popüler şarkı`
     : state.provider === 'playlist'
       ? `Çalma listesi · ${t.length.toLocaleString('tr')} şarkı`
-      : `${t.length.toLocaleString('tr')} beğenilen şarkı${
-        { youtube: ' (YouTube Music)', both: ' (Spotify + YouTube Music)' }[state.provider] || ''}`;
+      : `${t.length.toLocaleString('tr')} şarkı · ${
+        { spotify: 'Spotify', youtube: 'YouTube Music', both: 'Spotify + YouTube Music' }[state.provider]}`;
   $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, notes.lang, notes.pop]
     .filter(Boolean).join(' · ');
 }
@@ -823,7 +958,10 @@ function bindGame() {
     if (p === 'spotify') auth.logout();
     if (p === 'youtube') yt.logout();
     if (p === 'playlist') localStorage.removeItem('ls.playlistId');
-    if (p !== 'demo') clearLibrary(p);
+    if (p !== 'demo') {
+      clearLibrary(p);
+      sources.clearSources(p);
+    }
     const other = Object.keys(PROVIDERS).find(k => hasLibrary(k));
     if (other) return startGame(loadCachedLibrary(other).tracks, other);
     localStorage.removeItem(KEY_PROVIDER);
