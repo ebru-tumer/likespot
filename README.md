@@ -15,13 +15,13 @@ Kolay en popüler beşte birden, İmkânsız en az bilinen beşte birden şarkı
 Her zorlukta klipler aynı: **0.1 · 0.5 · 2 · 8 · 15 sn** ve cevap her zaman yazılarak verilir.
 Bilemezsen ya da atlarsan sonraki klibe geçilir.
 
-| Zorluk   | Yazarken öneri | Klip yeri                          | Puan çarpanı |
-|----------|----------------|------------------------------------|--------------|
-| Kolay    | İlk harften    | Önizlemenin başı                   | ×1 |
-| Orta     | İlk harften    | Rastgele                           | ×2 |
-| Zor      | 2 harften sonra| Önizlemenin başı                   | ×3 |
-| Uzman    | 3 harften sonra| Rastgele                           | ×4 |
-| İmkânsız | 3 harften sonra| Her adımda başka rastgele bir yer  | ×5 |
+| Zorluk   | Klip yeri                          | Puan çarpanı |
+|----------|------------------------------------|--------------|
+| Kolay    | Önizlemenin başı                   | ×1 |
+| Orta     | Rastgele                           | ×2 |
+| Zor      | Önizlemenin başı                   | ×3 |
+| Uzman    | Rastgele                           | ×4 |
+| İmkânsız | Her adımda başka rastgele bir yer  | ×5 |
 
 Ayrıca şunlar seçilebilir:
 - **Soru:** şarkı adı / sanatçı / karışık

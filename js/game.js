@@ -2,22 +2,22 @@
 import { normalize, cleanTitle } from './players.js';
 
 // Her zorlukta klipler aynı ve cevap hep yazılarak verilir.
-// Zorluk; şarkının popülerliği (bkz. Picker.tierSlice), klibin yeri, önerilerin kaç harften sonra
-// çıktığı ve klibin her adımda yer değiştirmesiyle artar.
+// Zorluk; şarkının popülerliği (bkz. Picker.tierSlice), klibin yeri ve klibin her adımda
+// yer değiştirmesiyle artar.
 const CLIPS = [0.1, 0.5, 2, 8, 15];
 
 export const DIFFICULTIES = {
-  easy:       { label: 'Kolay',    clips: CLIPS, mode: 'type', offset: 'start',  mult: 1, minChars: 1,
-                color: '#22c55e', on: '#06210f', hint: 'En bilinen şarkıların · tanıdık yerden · öneriler ilk harften' },
-  medium:     { label: 'Orta',     clips: CLIPS, mode: 'type', offset: 'random', mult: 2, minChars: 1,
-                color: '#facc15', on: '#2a2104', hint: 'Bilinen şarkıların · rastgele yerden · öneriler ilk harften' },
-  hard:       { label: 'Zor',      clips: CLIPS, mode: 'type', offset: 'start',  mult: 3, minChars: 2,
-                color: '#fb923c', on: '#2b1406', hint: 'Orta popülerlikte şarkılar · tanıdık yerden · öneriler 2 harften' },
-  expert:     { label: 'Uzman',    clips: CLIPS, mode: 'type', offset: 'random', mult: 4, minChars: 3,
-                color: '#f87171', on: '#2b0b0b', hint: 'Az bilinen şarkılar · rastgele yerden · öneriler 3 harften' },
-  impossible: { label: 'İmkânsız', clips: CLIPS, mode: 'type', offset: 'random', mult: 5, minChars: 3,
+  easy:       { label: 'Kolay',    clips: CLIPS, mode: 'type', offset: 'start',  mult: 1,
+                color: '#22c55e', on: '#06210f', hint: 'En bilinen şarkıların · tanıdık yerden' },
+  medium:     { label: 'Orta',     clips: CLIPS, mode: 'type', offset: 'random', mult: 2,
+                color: '#facc15', on: '#2a2104', hint: 'Bilinen şarkıların · rastgele yerden' },
+  hard:       { label: 'Zor',      clips: CLIPS, mode: 'type', offset: 'start',  mult: 3,
+                color: '#fb923c', on: '#2b1406', hint: 'Orta popülerlikte şarkılar · tanıdık yerden' },
+  expert:     { label: 'Uzman',    clips: CLIPS, mode: 'type', offset: 'random', mult: 4,
+                color: '#f87171', on: '#2b0b0b', hint: 'Az bilinen şarkılar · rastgele yerden' },
+  impossible: { label: 'İmkânsız', clips: CLIPS, mode: 'type', offset: 'random', mult: 5,
                 reshuffle: true,
-                color: '#a855f7', on: '#ffffff', hint: 'En az bilinen şarkıların · her adımda başka bir yer · öneriler 3 harften' },
+                color: '#a855f7', on: '#ffffff', hint: 'En az bilinen şarkıların · her adımda başka bir yer' },
 };
 
 export const ERAS = {
