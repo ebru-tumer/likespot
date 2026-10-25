@@ -336,17 +336,39 @@ function selectedTracks(provider, fallback) {
   return tracks.length ? tracks : fallback;
 }
 
-function startGame(tracks, provider) {
-  const demo = provider === 'demo';
-  tracks = selectedTracks(provider, tracks);
+// Arka plan taramaları üst üste binmesin diye sıraya alınır.
+let genresRun = Promise.resolve();
+let popularityRun = Promise.resolve();
+
+// Şarkı listesini oyuna yükler (yeni tur başlatmadan): öneri dizini, dil ve popülerlik.
+function useTracks(tracks) {
   state.tracks = tracks;
   state.queued = null;
-  state.provider = provider;
-  if (!demo) localStorage.setItem(KEY_PROVIDER, provider);
   state.index = { title: buildIndex('title', tracks), artist: buildIndex('artist', tracks) };
-  renderProviders();
   renderSources();
   tagLanguages(tracks);
+  tagPopularity(tracks);
+  renderLibInfo();
+  if (state.provider === 'spotify' || state.provider === 'both') {
+    genresRun = genresRun.then(() => fetchArtistGenres(tracks, (done, total, genres) => {
+      tagLanguages(tracks, genres);
+      notes.lang = done < total ? `dil taranıyor ${done}/${total}` : '';
+      renderLibInfo();
+    }));
+  }
+  popularityRun = popularityRun.then(() => fetchPopularity(tracks, (done, total) => {
+    if (state.tracks !== tracks) return;
+    notes.pop = done < total ? `popülerlik taranıyor ${done}/${total}` : '';
+    renderLibInfo();
+  }));
+}
+
+function startGame(tracks, provider) {
+  const demo = provider === 'demo';
+  state.provider = provider;
+  if (!demo) localStorage.setItem(KEY_PROVIDER, provider);
+  renderProviders();
+  useTracks(selectedTracks(provider, tracks));
   show('game');
 
   $('btn-refresh').hidden = demo;
@@ -354,27 +376,82 @@ function startGame(tracks, provider) {
     demo: 'Demodan çık', spotify: "Spotify'dan çık", youtube: "YouTube'dan çık", playlist: 'Listeyi kapat',
     both: 'Tek hesaba dön',
   }[provider];
-  renderLibInfo();
-  if (provider === 'spotify' || provider === 'both') {
-    fetchArtistGenres(tracks, (done, total, genres) => {
-      tagLanguages(tracks, genres);
-      notes.lang = done < total ? `dil taranıyor ${done}/${total}` : '';
-      renderLibInfo();
-    });
-  }
-  tagPopularity(tracks);
-  fetchPopularity(tracks, (done, total) => {
-    if (state.tracks !== tracks) return;
-    notes.pop = done < total ? `popülerlik taranıyor ${done}/${total}` : '';
-    renderLibInfo();
-  });
 
   renderStats();
   renderOptions();
   newRound();
+  autoSync();
 }
 
-const notes = { lang: '', pop: '' };
+// ---------- Güncelleme ----------
+
+// Beğenilenler, çalma listesi adları ve seçili listelerin şarkıları bu süreden eskiyse
+// site açılınca arka planda yenilenir.
+const SYNC_MS = 60 * 60 * 1000;
+const syncing = new Set();
+
+const lastSync = p => Number(localStorage.getItem(`ls.synced.${p}`)) || loadCachedLibrary(p)?.fetchedAt || 0;
+
+// interactive: tıklamayla başladıysa gerekirse giriş penceresi açılabilir.
+async function syncProvider(p, interactive) {
+  if (syncing.has(p)) return false;
+  syncing.add(p);
+  try {
+    if (p === 'spotify') {
+      if (!auth.isLoggedIn()) return false;
+      await fetchLikedSongs();
+      if (auth.hasPlaylistScope()) await syncPlaylists(p, fetchSpotifyPlaylists, fetchSpotifyPlaylistTracks);
+    } else {
+      if (!yt.hasValidToken()) {
+        if (!interactive) return false;
+        await yt.login();
+      }
+      await yt.fetchYoutubeLikes();
+      await syncPlaylists(p, yt.fetchMyPlaylists, yt.fetchMyPlaylistTracks);
+    }
+    localStorage.setItem(`ls.synced.${p}`, String(Date.now()));
+    return true;
+  } finally {
+    syncing.delete(p);
+  }
+}
+
+// Liste adlarını yeniler, silinen listeleri seçimden çıkarır, seçili listelerin şarkılarını yeniden çeker.
+// Seçili olmayan listelerin eski şarkıları silinir; tekrar seçilince güncel hâli indirilir.
+async function syncPlaylists(p, fetchLists, fetchTracks) {
+  const lists = await fetchLists();
+  const ids = new Set(lists.map(l => l.id));
+  for (const old of sources.getPlaylists(p) || []) {
+    if (!ids.has(old.id)) sources.forgetPlaylistTracks(p, old.id);
+  }
+  sources.savePlaylists(p, lists);
+  const selected = sources.getSelection(p).filter(id => id === sources.LIKED || ids.has(id));
+  sources.setSelection(p, selected);
+  for (const l of lists) {
+    if (!selected.includes(l.id)) {
+      sources.forgetPlaylistTracks(p, l.id);
+      continue;
+    }
+    const tracks = await fetchTracks(l.id);
+    if (tracks.length) sources.savePlaylistTracks(p, l.id, tracks);
+  }
+}
+
+function autoSync() {
+  const provider = state.provider;
+  const due = sourceProviders().filter(p => Date.now() - lastSync(p) > SYNC_MS);
+  if (!due.length) return;
+  notes.sync = 'listeler güncelleniyor…';
+  renderLibInfo();
+  Promise.allSettled(due.map(p => syncProvider(p, false))).then(results => {
+    notes.sync = '';
+    if (state.provider !== provider) return;
+    if (results.some(r => r.value === true)) useTracks(selectedTracks(provider, state.tracks));
+    else renderLibInfo();
+  });
+}
+
+const notes = { lang: '', pop: '', sync: '' };
 
 function renderLibInfo() {
   const t = state.tracks;
@@ -385,7 +462,7 @@ function renderLibInfo() {
       ? `Çalma listesi · ${t.length.toLocaleString('tr')} şarkı`
       : `${t.length.toLocaleString('tr')} şarkı · ${
         { spotify: 'Spotify', youtube: 'YouTube Music', both: 'Spotify + YouTube Music' }[state.provider]}`;
-  $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, notes.lang, notes.pop]
+  $('lib-info').textContent = [base, `${tr.toLocaleString('tr')} Türkçe`, notes.sync, notes.lang, notes.pop]
     .filter(Boolean).join(' · ');
 }
 
@@ -933,15 +1010,18 @@ function bindGame() {
         startGame(lib.tracks, 'playlist');
         return;
       }
-      if (state.provider === 'youtube' || state.provider === 'both') {
-        if (!yt.hasValidToken()) await yt.login();
-        const lib = await loadYoutubeLibrary();
-        if (state.provider === 'youtube') return startGame(lib.tracks, 'youtube');
-        await loadLibrary(true);
-        return startGame(bothTracks(), 'both');
+      // Beğenilenler + çalma listeleri; oynanan tur bozulmadan yeni şarkılar eklenir.
+      const providers = sourceProviders();
+      // Google giriş penceresi tıklamadan hemen sonra açılmalı, o yüzden önce o.
+      if (providers.includes('youtube') && !yt.hasValidToken()) await yt.login();
+      notes.sync = 'listeler güncelleniyor…';
+      renderLibInfo();
+      try {
+        for (const p of providers) await syncProvider(p, true);
+      } finally {
+        notes.sync = '';
       }
-      const lib = await loadLibrary(true);
-      startGame(lib.tracks, 'spotify');
+      useTracks(selectedTracks(state.provider, state.tracks));
     } catch (err) {
       show('game');
       showError('game-error', err);
