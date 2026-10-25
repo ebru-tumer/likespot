@@ -344,6 +344,14 @@ async function toggleSource(provider, id, checked, row) {
 
 // ---------- Oyun müzikleri modu ----------
 
+// Sol paneldeki düğme: hesaplı moddan oyun müziklerine, oradan da son hesaba geçer.
+function renderOstToggle() {
+  const inOst = state.provider === 'ost';
+  const back = localStorage.getItem('ls.lastProvider');
+  $('btn-ost-toggle').hidden = inOst && !back;
+  $('btn-ost-toggle').querySelector('span').textContent = inOst ? 'Kendi şarkılarıma dön' : 'Oyun müzikleriyle oyna';
+}
+
 // Hesap gerekmez: seçili oyunların soundtrack'lerinden soru gelir. İlk girişte soru "Oyun" olur.
 async function startOst() {
   stopAudio();
@@ -436,7 +444,10 @@ function startGame(tracks, provider) {
   const demo = provider === 'demo';
   state.provider = provider;
   if (!demo) localStorage.setItem(KEY_PROVIDER, provider);
+  // Oyun müziklerinden çıkınca dönülecek hesap.
+  if (!demo && provider !== 'ost') localStorage.setItem('ls.lastProvider', provider);
   renderProviders();
+  renderOstToggle();
   useTracks(selectedTracks(provider, tracks));
   show('game');
 
@@ -1123,6 +1134,10 @@ function bindGame() {
     }
   };
   $('opt-provider').onchange = () => switchProvider($('opt-provider').value);
+  $('btn-ost-toggle').onclick = () => {
+    const back = localStorage.getItem('ls.lastProvider');
+    switchProvider(state.provider === 'ost' && back ? back : 'ost');
+  };
 
   // Sadece şu anki hesaptan çıkar; bağlı başka bir hesap varsa ona geçer.
   $('btn-logout').onclick = () => {
