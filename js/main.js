@@ -548,7 +548,7 @@ function startGame(tracks, provider) {
 
   $('btn-refresh').hidden = demo || provider === 'ost' || provider === 'charts';
   $('lang-group').hidden = provider === 'ost' || provider === 'charts';
-  $('era-group').hidden = provider === 'charts';
+  $('era-group').hidden = provider === 'charts' || provider === 'ost';
   $('btn-logout').textContent = {
     demo: 'Demodan çık', spotify: "Spotify'dan çık", youtube: "YouTube'dan çık", playlist: 'Listeyi kapat',
     ost: 'Moddan çık',
@@ -745,9 +745,9 @@ function langFilter() {
   return state.provider === 'ost' || state.provider === 'charts' ? 'all' : settings.lang;
 }
 
-// Hit şarkılarda dönem soldaki Şarkılar bölümünden seçilir.
+// Hit şarkılarda dönem soldaki Şarkılar bölümünden seçilir; oyun müziklerinde dönem önemsiz.
 function eraFilter() {
-  return state.provider === 'charts' ? 'all' : settings.era;
+  return state.provider === 'charts' || state.provider === 'ost' ? 'all' : settings.era;
 }
 
 // Zorluğun sırası (0 = Kolay) aynı zamanda şarkının popülerlik dilimidir.
