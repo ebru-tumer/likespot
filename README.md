@@ -6,6 +6,7 @@ Kısacık bir klip çalar; bilemezsen ya da atlarsan klip uzar.
 **Canlı site:** https://ebru-tumer.github.io/likespot/
 
 Giriş yolları: Spotify, YouTube Music (Google girişi), giriş yapmadan YouTube Music çalma listesi linki,
+**Hit şarkılar** modu (hesap gerekmez; tür ve dönem seçilir, şarkılar Deezer editör listelerinden, `js/charts.js`),
 **Oyun müzikleri** modu (hesap gerekmez; Hollow Knight, Silksong, Balatro, Plants vs. Zombies, Jetpack Joyride
 ve daha fazlası, `js/ost.js`'deki listeye oyun eklenebilir) ya da demo.
 
