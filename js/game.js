@@ -152,8 +152,26 @@ export class Picker {
     return sorted.slice(Math.floor(tier * size), Math.floor((tier + 1) * size));
   }
 
-  next(tracks, era, lang, tier) {
-    const pool = Picker.tierSlice(this.pool(tracks, era, lang), tier);
+  // byGroup: popülerlik her grubun (ör. her oyunun) kendi içinde sıralanır; böylece Kolay'da
+  // her oyunun en bilinen parçaları gelir, az dinlenen bir oyun tamamen İmkânsız'a düşmez.
+  static groupedTierSlice(pool, tier) {
+    const groups = new Map();
+    for (const t of pool) {
+      const key = t.artists[0];
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(t);
+    }
+    return [...groups.values()].flatMap(g => {
+      if (g.length < 5 || g.filter(t => t.pop != null).length < g.length * 0.5) return g;
+      const sorted = [...g].sort((a, b) => (b.pop ?? 0) - (a.pop ?? 0));
+      const size = sorted.length / 5;
+      return sorted.slice(Math.floor(tier * size), Math.floor((tier + 1) * size));
+    });
+  }
+
+  next(tracks, era, lang, tier, byGroup = false) {
+    const all = this.pool(tracks, era, lang);
+    const pool = byGroup && tier != null ? Picker.groupedTierSlice(all, tier) : Picker.tierSlice(all, tier);
     if (!pool.length) return null;
     const memory = Math.min(200, Math.floor(pool.length * 0.6));
     const fresh = pool.filter(t => !this.recent.includes(t.id));

@@ -30,7 +30,9 @@ export function tagPopularity(tracks, map = load()) {
 
 async function lookup(track) {
   const title = cleanTitle(track.name);
-  const artist = track.artists[0];
+  // Oyun müziklerinde "sanatçı" oyunun adı; Deezer'da besteciyle aranır, albüm adıyla doğrulanır.
+  const artist = track.composer || track.artists[0];
+  const game = track.composer ? normalize(track.artists[0]) : '';
   // Deezer'ın artist:"…" track:"…" biçimi sonuç vermiyor; düz arama yapıp sonuçları eşleştiriyoruz.
   const q = encodeURIComponent(`${artist} ${title}`);
   let data = await jsonp(`https://api.deezer.com/search?q=${q}&limit=10`);
@@ -43,9 +45,12 @@ async function lookup(track) {
   const wantTitle = normalize(title);
   const wantArtist = normalize(artist);
   const titleOf = r => normalize(cleanTitle(r.title_short || r.title));
+  // "Louis.F" ile "LouisF" gibi farklar için boşluksuz karşılaştırılır.
+  const squash = s => s.replace(/ /g, '');
   const artistOk = r => {
-    const a = normalize(r.artist?.name);
-    return a && (a.includes(wantArtist) || wantArtist.includes(a));
+    const a = squash(normalize(r.artist?.name));
+    const w = squash(wantArtist);
+    return (a && (a.includes(w) || w.includes(a))) || (game && normalize(r.album?.title).includes(game));
   };
   const best = results.find(r => artistOk(r) && titleOf(r) === wantTitle)
     || results.find(r => artistOk(r) && (titleOf(r).startsWith(wantTitle) || wantTitle.startsWith(titleOf(r))));
