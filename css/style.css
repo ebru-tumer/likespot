@@ -206,6 +206,7 @@ svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; s
 }
 .mode-btn:hover { background: var(--surface-2); }
 .mode-btn svg { width: 12px; height: 12px; color: var(--accent-2); }
+.mode-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .chip {

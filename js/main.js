@@ -431,14 +431,14 @@ async function toggleCharts(kind, id, checked, row) {
 // Sol paneldeki düğme: hesaplı moddan oyun müziklerine, oradan da son hesaba geçer.
 // Sol paneldeki mod düğmeleri: hesaplı moddan oyun müziklerine ya da hit şarkılara geçer,
 // o moddayken de son kullanılan hesaba döner.
-const MODE_BUTTONS = { ost: ['btn-ost-toggle', 'Oyun müzikleriyle oyna'], charts: ['btn-charts-toggle', 'Hit şarkılarla oyna'] };
+const MODE_BUTTONS = { ost: ['btn-ost-toggle', 'Oyun müzikleri'], charts: ['btn-charts-toggle', 'Hit şarkılar'] };
 
 function renderOstToggle() {
   const back = localStorage.getItem('ls.lastProvider');
   for (const [mode, [id, label]] of Object.entries(MODE_BUTTONS)) {
     const active = state.provider === mode;
     $(id).hidden = active && !back;
-    $(id).querySelector('span').textContent = active ? 'Kendi şarkılarıma dön' : label;
+    $(id).querySelector('span').textContent = active ? '← Kendi şarkılarım' : label;
     $(id).onclick = () => switchProvider(active && back ? back : mode);
   }
 }
