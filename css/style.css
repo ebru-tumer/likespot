@@ -192,18 +192,20 @@ svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; s
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 8px 12px;
-  border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  padding: 8px 14px;
+  border: 0;
   border-radius: 8px;
-  background: var(--tint-2);
-  color: var(--accent-2);
+  background: var(--surface);
+  color: var(--text);
   font: inherit;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
+  text-align: left;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
-.mode-btn:hover { background: var(--tint); }
-.mode-btn svg { width: 14px; height: 14px; }
+.mode-btn:hover { background: var(--surface-2); }
+.mode-btn svg { width: 12px; height: 12px; color: var(--accent-2); }
 
 .chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .chip {
