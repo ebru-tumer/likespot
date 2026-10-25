@@ -856,10 +856,18 @@ function renderReveal() {
   $('reveal-title').textContent = t.name;
   $('reveal-artist').textContent = t.artists.join(', ');
   $('reveal-album').textContent = [t.album, t.year].filter(Boolean).join(' · ');
-  $('btn-open').href = t.url || '#';
-  $('btn-open').hidden = !t.url;
-  $('btn-open').textContent = t.url.includes('spotify') ? "Spotify'da aç"
-    : t.url.includes('youtube') ? "YouTube Music'te aç" : "Apple Music'te aç";
+  if (state.provider === 'ost') {
+    // Oyun müziklerinde parçanın YouTube'daki aramasına gidilir (tam video için API kotası harcanmaz).
+    const q = `${t.artists[0]} ${t.name} OST`;
+    $('btn-open').href = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+    $('btn-open').hidden = false;
+    $('btn-open').textContent = "YouTube'da dinle";
+  } else {
+    $('btn-open').href = t.url || '#';
+    $('btn-open').hidden = !t.url;
+    $('btn-open').textContent = t.url.includes('spotify') ? "Spotify'da aç"
+      : t.url.includes('youtube') ? "YouTube Music'te aç" : "Apple Music'te aç";
+  }
   const keys = Object.keys(DIFFICULTIES);
   const nextKey = keys[(keys.indexOf(settings.difficulty) + 1) % keys.length];
   $('btn-next').textContent = !r.won ? 'Sonraki ⏎'
