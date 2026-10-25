@@ -429,11 +429,18 @@ async function toggleCharts(kind, id, checked, row) {
 // ---------- Oyun müzikleri modu ----------
 
 // Sol paneldeki düğme: hesaplı moddan oyun müziklerine, oradan da son hesaba geçer.
+// Sol paneldeki mod düğmeleri: hesaplı moddan oyun müziklerine ya da hit şarkılara geçer,
+// o moddayken de son kullanılan hesaba döner.
+const MODE_BUTTONS = { ost: ['btn-ost-toggle', 'Oyun müzikleriyle oyna'], charts: ['btn-charts-toggle', 'Hit şarkılarla oyna'] };
+
 function renderOstToggle() {
-  const inOst = state.provider === 'ost';
   const back = localStorage.getItem('ls.lastProvider');
-  $('btn-ost-toggle').hidden = inOst && !back;
-  $('btn-ost-toggle').querySelector('span').textContent = inOst ? 'Kendi şarkılarıma dön' : 'Oyun müzikleriyle oyna';
+  for (const [mode, [id, label]] of Object.entries(MODE_BUTTONS)) {
+    const active = state.provider === mode;
+    $(id).hidden = active && !back;
+    $(id).querySelector('span').textContent = active ? 'Kendi şarkılarıma dön' : label;
+    $(id).onclick = () => switchProvider(active && back ? back : mode);
+  }
 }
 
 // Hesap gerekmez: seçili oyunların soundtrack'lerinden soru gelir. İlk girişte soru "Oyun" olur.
@@ -533,7 +540,7 @@ function startGame(tracks, provider) {
   state.provider = provider;
   if (!demo) localStorage.setItem(KEY_PROVIDER, provider);
   // Oyun müziklerinden çıkınca dönülecek hesap.
-  if (!demo && provider !== 'ost') localStorage.setItem('ls.lastProvider', provider);
+  if (!demo && provider !== 'ost' && provider !== 'charts') localStorage.setItem('ls.lastProvider', provider);
   renderProviders();
   renderOstToggle();
   useTracks(selectedTracks(provider, tracks));
@@ -1253,10 +1260,6 @@ function bindGame() {
     }
   };
   $('opt-provider').onchange = () => switchProvider($('opt-provider').value);
-  $('btn-ost-toggle').onclick = () => {
-    const back = localStorage.getItem('ls.lastProvider');
-    switchProvider(state.provider === 'ost' && back ? back : 'ost');
-  };
 
   // Sadece şu anki hesaptan çıkar; bağlı başka bir hesap varsa ona geçer.
   $('btn-logout').onclick = () => {
