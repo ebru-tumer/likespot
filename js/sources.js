@@ -47,9 +47,14 @@ export function savePlaylistTracks(provider, id, tracks) {
   write(keyTracks(provider, id), tracks);
 }
 
+export function forgetPlaylistTracks(provider, id) {
+  localStorage.removeItem(keyTracks(provider, id));
+}
+
 export function clearSources(provider) {
   for (const key of Object.keys(localStorage)) {
-    if (key === keySelection(provider) || key === keyLists(provider) || key.startsWith(`ls.pl.${provider}.`)) {
+    if (key === keySelection(provider) || key === keyLists(provider) || key === `ls.synced.${provider}`
+      || key.startsWith(`ls.pl.${provider}.`)) {
       localStorage.removeItem(key);
     }
   }
