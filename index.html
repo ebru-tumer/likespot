@@ -27,7 +27,7 @@
           </select>
         </div>
       </div>
-      <div class="group">
+      <div class="group" id="lang-group">
         <p class="label">Dil</p>
         <div class="select-wrap">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
@@ -59,7 +59,7 @@
         </div>
       </div>
       <div class="group" id="sources-group" hidden>
-        <p class="label">Şarkılar</p>
+        <p class="label" id="sources-label">Şarkılar</p>
         <div class="sources" id="sources"></div>
       </div>
       <hr>
@@ -107,6 +107,10 @@
           </div>
           <small>Liste "Herkese açık" ya da "Liste dışı" olmalı.</small>
         </form>
+        <button class="provider ost" id="btn-ost" type="button">
+          <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="4"/><path d="M7 11v3M5.5 12.5h3M16 12h.01M18 14h.01"/></svg>
+          Oyun müzikleriyle oyna
+        </button>
         <button class="link demo-link" id="btn-demo" type="button">Bağlanmadan demo oyna →</button>
         <p class="error" id="setup-error" hidden></p>
 
@@ -275,7 +279,7 @@
           if (!cached) return;
         }
         const files = ['./', 'index.html', 'css/style.css', 'auth', 'catalog', 'config', 'demo', 'game',
-          'language', 'library', 'main', 'players', 'popularity', 'sources', 'youtube'].map(f => f.includes('.') || f === './' ? f : `js/${f}.js`);
+          'language', 'library', 'main', 'ost', 'players', 'popularity', 'sources', 'youtube'].map(f => f.includes('.') || f === './' ? f : `js/${f}.js`);
         await Promise.all(files.map(f => fetch(f, { cache: 'reload' }).catch(() => {})));
         location.reload();
       } catch { /* sürüm kontrolü yapılamazsa sayfa olduğu gibi çalışır */ }

@@ -13,6 +13,7 @@ import { tagLanguages, fetchArtistGenres } from './language.js';
 import { searchCatalog } from './catalog.js';
 import { tagPopularity, fetchPopularity } from './popularity.js';
 import * as sources from './sources.js';
+import * as ost from './ost.js';
 
 const $ = id => document.getElementById(id);
 const KEY_SETTINGS = 'ls.settings';
@@ -108,6 +109,10 @@ function initSetup() {
     }
   };
   $('btn-demo').onclick = () => startGame(DEMO_TRACKS, 'demo');
+  $('btn-ost').onclick = () => startOst().catch(err => {
+    show('setup');
+    showError('setup-error', err);
+  });
   yt.loadGoogle().catch(() => {});
 }
 
@@ -153,6 +158,7 @@ async function loadLibrary(force = false) {
 // ---------- Hesaplar arası geçiş ----------
 
 const PROVIDERS = { spotify: 'Spotify', youtube: 'YouTube Music', playlist: 'Çalma listesi' };
+const OST_LABEL = 'Oyun müzikleri';
 
 function renderProviders() {
   const sel = $('opt-provider');
@@ -166,6 +172,8 @@ function renderProviders() {
   }
   // İki hesap da bağlıysa ikisinden ortak soru sorulabilir.
   if (hasLibrary('spotify') && hasLibrary('youtube')) sel.add(new Option('İkisi birden', 'both'));
+  // Oyun müzikleri her zaman seçilebilir; hesap gerekmez.
+  sel.add(new Option(OST_LABEL, 'ost'));
   if (state.provider === 'demo') sel.add(new Option('Demo', 'demo'));
   sel.value = state.provider;
 }
@@ -181,6 +189,7 @@ async function switchProvider(p) {
   $('game-error').hidden = true;
   try {
     if (p === 'both') return startGame(bothTracks(), 'both');
+    if (p === 'ost') return await startOst();
     if (p === 'spotify') {
       if (!auth.isLoggedIn()) {
         localStorage.setItem(KEY_PROVIDER, 'spotify');
@@ -218,6 +227,13 @@ function sourceProviders() {
 function renderSources() {
   const box = $('sources');
   box.innerHTML = '';
+  if (state.provider === 'ost') {
+    $('sources-label').textContent = 'Oyunlar';
+    $('sources-group').hidden = false;
+    renderOstGames(box);
+    return;
+  }
+  $('sources-label').textContent = 'Şarkılar';
   const providers = sourceProviders();
   $('sources-group').hidden = !providers.length;
   for (const p of providers) {
@@ -326,6 +342,57 @@ async function toggleSource(provider, id, checked, row) {
   }
 }
 
+// ---------- Oyun müzikleri modu ----------
+
+// Hesap gerekmez: seçili oyunların soundtrack'lerinden soru gelir. İlk girişte soru "Oyun" olur.
+async function startOst() {
+  stopAudio();
+  show('loading');
+  $('loading-text').textContent = 'Oyun müzikleri yükleniyor…';
+  $('loading-bar').style.width = '60%';
+  const tracks = await ost.loadSelectedTracks();
+  if (!tracks.length) throw new Error('Oyun müzikleri yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.');
+  if (!localStorage.getItem('ls.ost.started')) {
+    localStorage.setItem('ls.ost.started', '1');
+    settings.question = 'artist';
+    saveSettings();
+  }
+  startGame(tracks, 'ost');
+}
+
+function renderOstGames(box) {
+  const selected = ost.getSelectedGames();
+  for (const g of ost.GAMES) {
+    const count = ost.cachedGameTracks(g.id)?.length;
+    const row = sourceRow('ost', g.id, g.name, count, selected.includes(g.id));
+    row.querySelector('input').onchange = e => toggleGame(g, e.target.checked, row);
+    box.appendChild(row);
+  }
+}
+
+async function toggleGame(game, checked, row) {
+  const selected = ost.getSelectedGames().filter(id => id !== game.id);
+  if (checked) selected.push(game.id);
+  if (!selected.length) {
+    row.querySelector('input').checked = true;
+    return showError('game-error', new Error('En az bir oyun seçili olmalı.'));
+  }
+  $('game-error').hidden = true;
+  try {
+    if (checked) {
+      row.classList.add('loading');
+      const tracks = await ost.fetchGameTracks(game);
+      if (!tracks.length) throw new Error(`${game.name} müzikleri bulunamadı.`);
+    }
+    ost.setSelectedGames(selected);
+    useTracks(await ost.loadSelectedTracks());
+    newRound();
+  } catch (err) {
+    renderSources();
+    showError('game-error', err);
+  }
+}
+
 // ---------- Oyun ----------
 
 // Hesabın seçili kaynakları (beğenilenler + çalma listeleri); seçimden şarkı çıkmazsa verilen liste.
@@ -346,6 +413,8 @@ function useTracks(tracks) {
   state.queued = null;
   state.index = { title: buildIndex('title', tracks), artist: buildIndex('artist', tracks) };
   renderSources();
+  renderLibInfo();
+  if (state.provider === 'ost') return;
   tagLanguages(tracks);
   tagPopularity(tracks);
   renderLibInfo();
@@ -371,9 +440,11 @@ function startGame(tracks, provider) {
   useTracks(selectedTracks(provider, tracks));
   show('game');
 
-  $('btn-refresh').hidden = demo;
+  $('btn-refresh').hidden = demo || provider === 'ost';
+  $('lang-group').hidden = provider === 'ost';
   $('btn-logout').textContent = {
     demo: 'Demodan çık', spotify: "Spotify'dan çık", youtube: "YouTube'dan çık", playlist: 'Listeyi kapat',
+    ost: 'Moddan çık',
     both: 'Tek hesaba dön',
   }[provider];
 
@@ -456,6 +527,10 @@ const notes = { lang: '', pop: '', sync: '' };
 function renderLibInfo() {
   const t = state.tracks;
   const tr = t.filter(x => x.lang === 'tr').length;
+  if (state.provider === 'ost') {
+    $('lib-info').textContent = `${OST_LABEL} · ${t.length.toLocaleString('tr')} parça · ${ost.getSelectedGames().length} oyun`;
+    return;
+  }
   const base = state.provider === 'demo'
     ? `Demo · ${t.length} popüler şarkı`
     : state.provider === 'playlist'
@@ -514,6 +589,12 @@ function renderOptions() {
   $('opt-era').value = settings.era;
   $('opt-lang').value = settings.lang;
   for (const b of $('qtabs').children) b.classList.toggle('active', b.dataset.q === settings.question);
+  // Oyun müziklerinde "sanatçı" sorusu "hangi oyun" sorusudur.
+  const isOst = state.provider === 'ost';
+  const labels = isOst ? { title: 'Parça', artist: 'Oyun' } : { title: 'Şarkı', artist: 'Sanatçı' };
+  for (const b of $('qtabs').children) if (labels[b.dataset.q]) b.textContent = labels[b.dataset.q];
+  $('opt-question').options[0].text = isOst ? 'Parçanın adı' : 'Şarkının adı';
+  $('opt-question').options[1].text = isOst ? 'Hangi oyun' : 'Sanatçı';
 
   const canSpotify = state.provider === 'spotify';
   const source = canSpotify ? settings.source : 'preview';
@@ -545,6 +626,11 @@ function setBusy(busy) {
   $('btn-play').disabled = busy;
 }
 
+// Oyun müziklerinde dil filtresi anlamsız.
+function langFilter() {
+  return state.provider === 'ost' ? 'all' : settings.lang;
+}
+
 // Zorluğun sırası (0 = Kolay) aynı zamanda şarkının popülerlik dilimidir.
 function tier() {
   return Object.keys(DIFFICULTIES).indexOf(settings.difficulty);
@@ -555,7 +641,7 @@ async function pickPlayable() {
   for (let i = 0; i < 12; i++) {
     let track = state.queued;
     state.queued = null;
-    if (!track) track = picker.next(state.tracks, settings.era, settings.lang, tier());
+    if (!track) track = picker.next(state.tracks, settings.era, langFilter(), tier());
     if (!track) return null;
     if (player() !== preview) return track;
     const loaded = await preview.load(track);
@@ -578,7 +664,7 @@ function enrich(track, match) {
 
 function queueNext() {
   if (player() !== preview) return;
-  const next = picker.next(state.tracks, settings.era, settings.lang, tier());
+  const next = picker.next(state.tracks, settings.era, langFilter(), tier());
   if (!next) return;
   state.queued = next;
   preview.load(next);
@@ -675,8 +761,13 @@ function renderRound() {
   const d = DIFFICULTIES[settings.difficulty];
   const qtype = r?.qtype || (settings.question === 'artist' ? 'artist' : 'title');
 
-  $('question').textContent = qtype === 'artist' ? 'Bu şarkıyı kim söylüyor?' : 'Bu şarkının adı ne?';
-  $('guess-input').placeholder = qtype === 'artist' ? 'Sanatçıyı bil' : 'Şarkıyı bil';
+  const isOst = state.provider === 'ost';
+  $('question').textContent = qtype === 'artist'
+    ? (isOst ? 'Bu hangi oyunun müziği?' : 'Bu şarkıyı kim söylüyor?')
+    : (isOst ? 'Bu parçanın adı ne?' : 'Bu şarkının adı ne?');
+  $('guess-input').placeholder = qtype === 'artist'
+    ? (isOst ? 'Oyunu bil' : 'Sanatçıyı bil')
+    : (isOst ? 'Parçayı bil' : 'Şarkıyı bil');
 
   // Sağ paneldeki klip çipleri
   const ladder = $('ladder');
@@ -921,12 +1012,16 @@ function onInput() {
   const qtype = state.round?.qtype || 'title';
   const id = ++suggestId;
   suggestTimer = setTimeout(async () => {
-    const local = suggest(state.index[qtype], text, 4);
+    const ostMode = state.provider === 'ost';
+    // Oyun müziklerinde öneriler sadece seçili oyunların parçalarından/adlarından gelir.
+    const local = suggest(state.index[qtype], text, ostMode ? 8 : 4);
     let catalog = [];
-    try {
-      catalog = await searchCatalog(qtype, text);
-    } catch {
-      // Katalog yoksa yerel öneriler yeter.
+    if (!ostMode) {
+      try {
+        catalog = await searchCatalog(qtype, text);
+      } catch {
+        // Katalog yoksa yerel öneriler yeter.
+      }
     }
     if (id !== suggestId) return;
     state.suggestions = rankItems([...catalog, ...local], text);
@@ -1035,6 +1130,12 @@ function bindGame() {
     const p = state.provider;
     // "İkisi birden" modunda çıkış yerine tek hesaba (Spotify) dönülür.
     if (p === 'both') return switchProvider('spotify');
+    if (p === 'ost') {
+      const other = Object.keys(PROVIDERS).find(k => hasLibrary(k));
+      if (other) return switchProvider(other);
+      localStorage.removeItem(KEY_PROVIDER);
+      return show('setup');
+    }
     if (p === 'spotify') auth.logout();
     if (p === 'youtube') yt.logout();
     if (p === 'playlist') localStorage.removeItem('ls.playlistId');
@@ -1055,6 +1156,7 @@ async function main() {
   try {
     if (await auth.handleRedirect()) localStorage.setItem(KEY_PROVIDER, 'spotify');
     const provider = localStorage.getItem(KEY_PROVIDER) || (auth.isLoggedIn() ? 'spotify' : '');
+    if (provider === 'ost') return await startOst();
     if (provider === 'both' && hasLibrary('spotify') && hasLibrary('youtube')) {
       return startGame(bothTracks(), 'both');
     }

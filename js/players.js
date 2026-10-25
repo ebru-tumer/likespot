@@ -83,7 +83,8 @@ export class PreviewPlayer {
     const key = track.id;
     if (!this.cache.has(key)) {
       this.cache.set(key, (async () => {
-        const match = await this.findPreview(track);
+        // Oyun müziklerinde önizleme adresi zaten bilinir; aramaya gerek yok.
+        const match = track.preview ? { previewUrl: track.preview } : await this.findPreview(track);
         if (!match) return null;
         const res = await fetch(match.previewUrl);
         const buffer = await ctx().decodeAudioData(await res.arrayBuffer());
