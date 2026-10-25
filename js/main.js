@@ -24,9 +24,17 @@ const spotify = new SpotifyPlayer();
 const picker = new Picker();
 
 const settings = {
-  difficulty: 'expert', question: 'title', era: 'all', lang: 'all', source: 'preview', volume: 90,
+  difficulty: 'expert', question: 'title', era: 'all', lang: 'all', source: 'preview', volume: 90, volumeCurve: 3,
 };
-try { Object.assign(settings, JSON.parse(localStorage.getItem(KEY_SETTINGS))); } catch { /* varsayılanlar */ }
+try {
+  const saved = JSON.parse(localStorage.getItem(KEY_SETTINGS));
+  // Eski sürümde ses düzeyi doğrusal uygulanıyordu; aynı yükseklikte kalsın diye yeni (küp) ölçeğe çevrilir.
+  if (saved && !saved.volumeCurve && typeof saved.volume === 'number') {
+    saved.volume = Math.round(Math.cbrt(saved.volume / 100) * 100);
+  }
+  Object.assign(settings, saved, { volumeCurve: 3 });
+  if (saved) localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
+} catch { /* varsayılanlar */ }
 
 const state = {
   tracks: [],
