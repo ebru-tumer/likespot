@@ -61,8 +61,9 @@ svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; s
   grid-template-columns: minmax(0, 1fr) 320px minmax(0, 1fr);
   column-gap: clamp(64px, 13vw, 270px);
   min-height: 100vh;
-  padding: 48px 24px 72px;
-  align-items: center;
+  /* Üstten hizalı: tahminler eklendikçe oyun alanı yerinde kalır, liste aşağı doğru uzar. */
+  padding: clamp(32px, 8vh, 96px) 24px 72px;
+  align-items: start;
 }
 
 /* Giriş ve yükleme ekranlarında yan paneller yok; içerik ortalanır. */
@@ -465,7 +466,11 @@ code {
   border-radius: 7px;
   background: #1b1a20;
   margin: 10px 0 22px;
+  cursor: pointer;
 }
+.timeline:hover { background: #222128; }
+.timeline.locked { cursor: default; }
+.timeline.locked:hover { background: #1b1a20; }
 .tl-tick {
   position: absolute;
   top: 0;
