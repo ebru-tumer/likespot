@@ -14,6 +14,7 @@ import { searchCatalog } from './catalog.js';
 import { tagPopularity, fetchPopularity } from './popularity.js';
 import * as sources from './sources.js';
 import * as ost from './ost.js';
+import * as charts from './charts.js';
 
 const $ = id => document.getElementById(id);
 const KEY_SETTINGS = 'ls.settings';
@@ -122,6 +123,10 @@ function initSetup() {
     }
   };
   $('btn-demo').onclick = () => startGame(DEMO_TRACKS, 'demo');
+  $('btn-charts').onclick = () => startCharts().catch(err => {
+    show('setup');
+    showError('setup-error', err);
+  });
   $('btn-ost').onclick = () => startOst().catch(err => {
     show('setup');
     showError('setup-error', err);
@@ -186,6 +191,7 @@ function renderProviders() {
   // İki hesap da bağlıysa ikisinden ortak soru sorulabilir.
   if (hasLibrary('spotify') && hasLibrary('youtube')) sel.add(new Option('İkisi birden', 'both'));
   // Oyun müzikleri her zaman seçilebilir; hesap gerekmez.
+  sel.add(new Option(CHARTS_LABEL, 'charts'));
   sel.add(new Option(OST_LABEL, 'ost'));
   if (state.provider === 'demo') sel.add(new Option('Demo', 'demo'));
   sel.value = state.provider;
@@ -203,6 +209,7 @@ async function switchProvider(p) {
   try {
     if (p === 'both') return startGame(bothTracks(), 'both');
     if (p === 'ost') return await startOst();
+    if (p === 'charts') return await startCharts();
     if (p === 'spotify') {
       if (!auth.isLoggedIn()) {
         localStorage.setItem(KEY_PROVIDER, 'spotify');
@@ -244,6 +251,12 @@ function renderSources() {
     $('sources-label').textContent = 'Oyunlar';
     $('sources-group').hidden = false;
     renderOstGames(box);
+    return;
+  }
+  if (state.provider === 'charts') {
+    $('sources-label').textContent = 'Şarkılar';
+    $('sources-group').hidden = false;
+    renderChartsPicker(box);
     return;
   }
   $('sources-label').textContent = 'Şarkılar';
@@ -355,6 +368,64 @@ async function toggleSource(provider, id, checked, row) {
   }
 }
 
+// ---------- Hit şarkılar modu (hesapsız, tür + dönem) ----------
+
+const CHARTS_LABEL = 'Hit şarkılar';
+
+async function startCharts() {
+  stopAudio();
+  show('loading');
+  $('loading-text').textContent = 'Şarkılar yükleniyor…';
+  $('loading-bar').style.width = '60%';
+  const tracks = await charts.loadSelectedTracks();
+  if (!tracks.length) throw new Error('Şarkılar yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.');
+  startGame(tracks, 'charts');
+}
+
+function renderChartsPicker(box) {
+  const sel = charts.getSelection();
+  const heading = text => {
+    const h = document.createElement('p');
+    h.className = 'sources-head';
+    h.textContent = text;
+    box.appendChild(h);
+  };
+  heading('Tür');
+  for (const g of charts.GENRES) {
+    const row = sourceRow('charts', g.id, g.name, null, sel.genres.includes(g.id));
+    row.querySelector('input').onchange = e => toggleCharts('genres', g.id, e.target.checked, row);
+    box.appendChild(row);
+  }
+  heading('Dönem');
+  for (const era of charts.ERAS) {
+    const row = sourceRow('charts', era.id, era.name, null, sel.eras.includes(era.id));
+    row.querySelector('input').onchange = e => toggleCharts('eras', era.id, e.target.checked, row);
+    box.appendChild(row);
+  }
+}
+
+async function toggleCharts(kind, id, checked, row) {
+  const sel = { ...charts.getSelection() };
+  sel[kind] = sel[kind].filter(x => x !== id);
+  if (checked) sel[kind].push(id);
+  if (!sel[kind].length) {
+    row.querySelector('input').checked = true;
+    return showError('game-error', new Error(kind === 'genres' ? 'En az bir tür seçili olmalı.' : 'En az bir dönem seçili olmalı.'));
+  }
+  $('game-error').hidden = true;
+  row.classList.add('loading');
+  try {
+    const tracks = await charts.loadSelectedTracks(sel);
+    if (!tracks.length) throw new Error('Bu tür ve dönem seçiminde şarkı bulunamadı.');
+    charts.setSelection(sel);
+    useTracks(tracks);
+    newRound();
+  } catch (err) {
+    renderSources();
+    showError('game-error', err);
+  }
+}
+
 // ---------- Oyun müzikleri modu ----------
 
 // Sol paneldeki düğme: hesaplı moddan oyun müziklerine, oradan da son hesaba geçer.
@@ -439,6 +510,7 @@ function useTracks(tracks) {
   renderSources();
   renderLibInfo();
   // Oyun müziklerinde dil taraması yok ama popülerlik var (zorluk dilimleri için).
+  if (state.provider === 'charts') return;
   if (state.provider !== 'ost') tagLanguages(tracks);
   tagPopularity(tracks);
   renderLibInfo();
@@ -467,11 +539,13 @@ function startGame(tracks, provider) {
   useTracks(selectedTracks(provider, tracks));
   show('game');
 
-  $('btn-refresh').hidden = demo || provider === 'ost';
-  $('lang-group').hidden = provider === 'ost';
+  $('btn-refresh').hidden = demo || provider === 'ost' || provider === 'charts';
+  $('lang-group').hidden = provider === 'ost' || provider === 'charts';
+  $('era-group').hidden = provider === 'charts';
   $('btn-logout').textContent = {
     demo: 'Demodan çık', spotify: "Spotify'dan çık", youtube: "YouTube'dan çık", playlist: 'Listeyi kapat',
     ost: 'Moddan çık',
+    charts: 'Moddan çık',
     both: 'Tek hesaba dön',
   }[provider];
 
@@ -554,6 +628,10 @@ const notes = { lang: '', pop: '', sync: '' };
 function renderLibInfo() {
   const t = state.tracks;
   const tr = t.filter(x => x.lang === 'tr').length;
+  if (state.provider === 'charts') {
+    $('lib-info').textContent = `${CHARTS_LABEL} · ${t.length.toLocaleString('tr')} şarkı · ${charts.describe()}`;
+    return;
+  }
   if (state.provider === 'ost') {
     $('lib-info').textContent = [`${OST_LABEL} · ${t.length.toLocaleString('tr')} parça · ${ost.getSelectedGames().length} oyun`,
       notes.pop].filter(Boolean).join(' · ');
@@ -657,7 +735,12 @@ function setBusy(busy) {
 
 // Oyun müziklerinde dil filtresi anlamsız.
 function langFilter() {
-  return state.provider === 'ost' ? 'all' : settings.lang;
+  return state.provider === 'ost' || state.provider === 'charts' ? 'all' : settings.lang;
+}
+
+// Hit şarkılarda dönem soldaki Şarkılar bölümünden seçilir.
+function eraFilter() {
+  return state.provider === 'charts' ? 'all' : settings.era;
 }
 
 // Zorluğun sırası (0 = Kolay) aynı zamanda şarkının popülerlik dilimidir.
@@ -670,7 +753,7 @@ async function pickPlayable() {
   for (let i = 0; i < 12; i++) {
     let track = state.queued;
     state.queued = null;
-    if (!track) track = picker.next(state.tracks, settings.era, langFilter(), tier(), state.provider === 'ost');
+    if (!track) track = picker.next(state.tracks, eraFilter(), langFilter(), tier(), state.provider === 'ost');
     if (!track) return null;
     if (player() !== preview) return track;
     const loaded = await preview.load(track);
@@ -693,7 +776,7 @@ function enrich(track, match) {
 
 function queueNext() {
   if (player() !== preview) return;
-  const next = picker.next(state.tracks, settings.era, langFilter(), tier(), state.provider === 'ost');
+  const next = picker.next(state.tracks, eraFilter(), langFilter(), tier(), state.provider === 'ost');
   if (!next) return;
   state.queued = next;
   preview.load(next);
@@ -888,7 +971,8 @@ function renderReveal() {
     $('btn-open').href = t.url || '#';
     $('btn-open').hidden = !t.url;
     $('btn-open').textContent = t.url.includes('spotify') ? "Spotify'da aç"
-      : t.url.includes('youtube') ? "YouTube Music'te aç" : "Apple Music'te aç";
+      : t.url.includes('youtube') ? "YouTube Music'te aç"
+      : t.url.includes('deezer') ? "Deezer'da aç" : "Apple Music'te aç";
   }
   const keys = Object.keys(DIFFICULTIES);
   const nextKey = keys[(keys.indexOf(settings.difficulty) + 1) % keys.length];
@@ -1180,7 +1264,7 @@ function bindGame() {
     const p = state.provider;
     // "İkisi birden" modunda çıkış yerine tek hesaba (Spotify) dönülür.
     if (p === 'both') return switchProvider('spotify');
-    if (p === 'ost') {
+    if (p === 'ost' || p === 'charts') {
       const other = Object.keys(PROVIDERS).find(k => hasLibrary(k));
       if (other) return switchProvider(other);
       localStorage.removeItem(KEY_PROVIDER);
@@ -1207,6 +1291,7 @@ async function main() {
     if (await auth.handleRedirect()) localStorage.setItem(KEY_PROVIDER, 'spotify');
     const provider = localStorage.getItem(KEY_PROVIDER) || (auth.isLoggedIn() ? 'spotify' : '');
     if (provider === 'ost') return await startOst();
+    if (provider === 'charts') return await startCharts();
     if (provider === 'both' && hasLibrary('spotify') && hasLibrary('youtube')) {
       return startGame(bothTracks(), 'both');
     }
