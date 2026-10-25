@@ -768,6 +768,9 @@ function timelinePos(sec) {
 
 function renderTimeline() {
   const r = state.round;
+  const clipsLeft = r && !r.done && r.step < DIFFICULTIES[settings.difficulty].clips.length - 1;
+  $('timeline').classList.toggle('locked', !clipsLeft);
+  $('timeline').title = clipsLeft ? 'Bir sonraki süreyi aç' : '';
   const clips = DIFFICULTIES[settings.difficulty].clips;
   const sec = r?.done ? clips[clips.length - 1] : currentClip();
   const pos = timelinePos(sec);
@@ -1111,6 +1114,11 @@ function bindGame() {
     playClip(r?.done ? 15 : currentClip());
   };
   $('btn-skip').onclick = skip;
+  // Süre çubuğuna tıklamak da bir sonraki süreyi açar (Atla ile aynı).
+  // Son süredeyken tıklamak turu bitirmez.
+  $('timeline').onclick = () => {
+    if (!$('timeline').classList.contains('locked')) skip();
+  };
   $('btn-skip-choice').onclick = skip;
   $('btn-next').onclick = nextSong;
   $('btn-listen').onclick = () => playClip(15);
