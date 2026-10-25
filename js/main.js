@@ -4,7 +4,7 @@ import {
   fetchSpotifyPlaylists, fetchSpotifyPlaylistTracks,
 } from './library.js';
 import * as yt from './youtube.js';
-import { PreviewPlayer, SpotifyPlayer } from './players.js';
+import { PreviewPlayer, SpotifyPlayer, normalize } from './players.js';
 import {
   DIFFICULTIES, Picker, isCorrect, points, makeChoices, buildIndex, suggest, rankItems, loadStats, saveStats,
 } from './game.js';
@@ -428,6 +428,14 @@ function useTracks(tracks) {
   state.tracks = tracks;
   state.queued = null;
   state.index = { title: buildIndex('title', tracks), artist: buildIndex('artist', tracks) };
+  if (state.provider === 'ost') {
+    state.index.artist = ost.gameSuggestionIndex(normalize);
+    // Parça adında oyunun kısaltmasıyla da aranabilsin ("pvz gras" → Grasswalk).
+    for (const item of state.index.title) {
+      const game = ost.GAMES.find(g => g.name === item.sub);
+      if (game?.aliases) item.search += ` ${normalize(game.aliases.join(' '))}`;
+    }
+  }
   renderSources();
   renderLibInfo();
   if (state.provider === 'ost') return;

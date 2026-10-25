@@ -5,11 +5,11 @@ import { cleanTitle } from './players.js';
 
 // albums: iTunes albüm (collection) kimlikleri.
 export const GAMES = [
-  { id: 'hollow-knight', name: 'Hollow Knight', albums: [1263341718, 1425627253] },
-  { id: 'silksong', name: 'Hollow Knight: Silksong', albums: [1838949732] },
+  { id: 'hollow-knight', name: 'Hollow Knight', albums: [1263341718, 1425627253], aliases: ['hk'] },
+  { id: 'silksong', name: 'Hollow Knight: Silksong', albums: [1838949732], aliases: ['hks', 'silk song'] },
   { id: 'balatro', name: 'Balatro', albums: [1793481100] },
-  { id: 'pvz', name: 'Plants vs. Zombies', albums: [1489505171] },
-  { id: 'jetpack', name: 'Jetpack Joyride', albums: [1717586125, 1174070639, 1722260968] },
+  { id: 'pvz', name: 'Plants vs. Zombies', albums: [1489505171], aliases: ['pvz', 'plants vs zombies', 'bitkiler zombilere karsi'] },
+  { id: 'jetpack', name: 'Jetpack Joyride', albums: [1717586125, 1174070639, 1722260968], aliases: ['jj'] },
   { id: 'celeste', name: 'Celeste', albums: [1544899658] },
   { id: 'undertale', name: 'Undertale', albums: [6813342945] },
   { id: 'deltarune', name: 'Deltarune', albums: [6813279267, 6813268822, 6813242328] },
@@ -19,7 +19,7 @@ export const GAMES = [
   { id: 'hades', name: 'Hades', albums: [1531339044] },
   { id: 'hades2', name: 'Hades II', albums: [1852248640] },
   { id: 'cuphead', name: 'Cuphead', albums: [1305353572] },
-  { id: 'ori', name: 'Ori and the Blind Forest', albums: [971519718] },
+  { id: 'ori', name: 'Ori and the Blind Forest', albums: [971519718], aliases: ['ori'] },
   { id: 'dead-cells', name: 'Dead Cells', albums: [1413811527] },
   { id: 'katana-zero', name: 'Katana Zero', albums: [1462456864] },
   { id: 'portal2', name: 'Portal 2', albums: [1891392601] },
@@ -82,6 +82,17 @@ export async function fetchGameTracks(game) {
     localStorage.setItem(keyTracks(game.id), JSON.stringify(tracks));
   } catch { /* depolama dolu; bir dahaki sefere yeniden indirilir */ }
   return tracks;
+}
+
+// "Hangi oyun" sorusunun önerileri: seçili olsun olmasın tüm oyunlar (kısaltmalarıyla aranabilir),
+// böylece öneri listesi cevabı ele vermez.
+export function gameSuggestionIndex(normalize) {
+  return GAMES.map(g => ({
+    label: g.name,
+    sub: '',
+    value: g.name,
+    search: normalize([g.name, ...(g.aliases || [])].join(' ')),
+  }));
 }
 
 // Seçili oyunların parçaları (indirilmemişse indirir).
