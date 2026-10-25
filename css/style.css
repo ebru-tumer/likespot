@@ -257,6 +257,7 @@ input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border: 0; bord
 .provider svg { width: 18px; height: 18px; }
 .provider.spotify { background: #1ed760; color: #04170a; }
 .provider.youtube { background: #ff0033; color: #fff; }
+.provider.ost { width: 100%; margin-top: 18px; background: #7c5cff; color: #fff; }
 .demo-link { display: block; margin: 16px auto 0; font-size: 12px; }
 .playlist-form { margin-top: 18px; font-size: 12px; color: var(--muted); }
 .playlist-form label { display: block; color: var(--text); font-weight: 600; }
