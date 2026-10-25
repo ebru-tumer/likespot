@@ -28,6 +28,11 @@ const settings = {
 };
 try {
   const saved = JSON.parse(localStorage.getItem(KEY_SETTINGS));
+  // Önceki sürüm oyun müziklerine ilk girişte soruyu kalıcı olarak "Oyun"a (artist) çeviriyordu; geri al.
+  if (saved && localStorage.getItem('ls.ost.started')) {
+    if (saved.question === 'artist') saved.question = 'title';
+    localStorage.removeItem('ls.ost.started');
+  }
   // Eski sürümde ses düzeyi doğrusal uygulanıyordu; aynı yükseklikte kalsın diye yeni (küp) ölçeğe çevrilir.
   if (saved && !saved.volumeCurve && typeof saved.volume === 'number') {
     saved.volume = Math.round(Math.cbrt(saved.volume / 100) * 100);
@@ -368,11 +373,6 @@ async function startOst() {
   $('loading-bar').style.width = '60%';
   const tracks = await ost.loadSelectedTracks();
   if (!tracks.length) throw new Error('Oyun müzikleri yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.');
-  if (!localStorage.getItem('ls.ost.started')) {
-    localStorage.setItem('ls.ost.started', '1');
-    settings.question = 'artist';
-    saveSettings();
-  }
   startGame(tracks, 'ost');
 }
 
@@ -616,12 +616,10 @@ function renderOptions() {
   $('opt-era').value = settings.era;
   $('opt-lang').value = settings.lang;
   for (const b of $('qtabs').children) b.classList.toggle('active', b.dataset.q === settings.question);
-  // Oyun müziklerinde "sanatçı" sorusu "hangi oyun" sorusudur.
+  // Oyun müziklerinde amaç parçanın adını bulmak; soru seçenekleri bu modda gizlenir.
   const isOst = state.provider === 'ost';
-  const labels = isOst ? { title: 'Parça', artist: 'Oyun' } : { title: 'Şarkı', artist: 'Sanatçı' };
-  for (const b of $('qtabs').children) if (labels[b.dataset.q]) b.textContent = labels[b.dataset.q];
-  $('opt-question').options[0].text = isOst ? 'Parçanın adı' : 'Şarkının adı';
-  $('opt-question').options[1].text = isOst ? 'Hangi oyun' : 'Sanatçı';
+  $('qtabs').style.visibility = isOst ? 'hidden' : '';
+  $('question-group').hidden = isOst;
 
   const canSpotify = state.provider === 'spotify';
   const source = canSpotify ? settings.source : 'preview';
@@ -707,7 +705,8 @@ async function newRound() {
   stopAudio();
   $('game-error').hidden = true;
   const d = DIFFICULTIES[settings.difficulty];
-  const qtype = settings.question === 'mixed' ? (Math.random() < 0.5 ? 'title' : 'artist') : settings.question;
+  const qtype = state.provider === 'ost' ? 'title'
+    : settings.question === 'mixed' ? (Math.random() < 0.5 ? 'title' : 'artist') : settings.question;
 
   state.round = null;
   renderRound();
@@ -789,7 +788,7 @@ function renderTimeline() {
 function renderRound() {
   const r = state.round;
   const d = DIFFICULTIES[settings.difficulty];
-  const qtype = r?.qtype || (settings.question === 'artist' ? 'artist' : 'title');
+  const qtype = r?.qtype || (settings.question === 'artist' && state.provider !== 'ost' ? 'artist' : 'title');
 
   const isOst = state.provider === 'ost';
   $('question').textContent = qtype === 'artist'
