@@ -107,19 +107,31 @@ export class PreviewPlayer {
     const loaded = await this.load(track);
     if (!loaded) throw new Error('Önizleme bulunamadı.');
     const c = ctx();
+    // Klip başına kısa açılış/kapanış (tık sesi olmasın) + ortak ses düzeyi düğümü;
+    // ses düzeyi ayrı düğümde olduğu için çalarken de anında değişir.
+    if (!this.master) {
+      this.master = c.createGain();
+      this.master.connect(c.destination);
+    }
+    this.master.gain.value = this.volume;
     const gain = c.createGain();
     const src = c.createBufferSource();
     src.buffer = loaded.buffer;
-    src.connect(gain).connect(c.destination);
+    src.connect(gain).connect(this.master);
     const t = c.currentTime + 0.02;
     const fade = Math.min(0.008, seconds / 4);
     gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(this.volume, t + fade);
-    gain.gain.setValueAtTime(this.volume, t + seconds - fade);
+    gain.gain.linearRampToValueAtTime(1, t + fade);
+    gain.gain.setValueAtTime(1, t + seconds - fade);
     gain.gain.linearRampToValueAtTime(0, t + seconds);
     src.start(t, offset, seconds);
     this.source = src;
     return new Promise(resolve => { src.onended = resolve; });
+  }
+
+  setVolume(v) {
+    this.volume = v;
+    if (this.master) this.master.gain.setTargetAtTime(v, this.master.context.currentTime, 0.015);
   }
 
   stop() {

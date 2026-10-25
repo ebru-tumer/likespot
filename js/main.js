@@ -619,10 +619,13 @@ function renderOptions() {
   applyVolume();
 }
 
+// Kulak sesi doğrusal duymadığı için kaydırıcı küpüyle uygulanır: yarıda ses gerçekten yarı
+// yüksek gelir (~-18 dB), en düşük kademelerde de kısılmaya devam eder.
 function applyVolume() {
-  const v = settings.volume / 100;
-  preview.volume = v;
+  const v = (settings.volume / 100) ** 3;
+  preview.setVolume(v);
   spotify.volume = v;
+  if (state.playing && player() === spotify) spotify.player?.setVolume(v);
   $('opt-volume').style.setProperty('--fill', `${settings.volume}%`);
 }
 
