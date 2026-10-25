@@ -438,8 +438,8 @@ function useTracks(tracks) {
   }
   renderSources();
   renderLibInfo();
-  if (state.provider === 'ost') return;
-  tagLanguages(tracks);
+  // Oyun müziklerinde dil taraması yok ama popülerlik var (zorluk dilimleri için).
+  if (state.provider !== 'ost') tagLanguages(tracks);
   tagPopularity(tracks);
   renderLibInfo();
   if (state.provider === 'spotify' || state.provider === 'both') {
@@ -555,7 +555,8 @@ function renderLibInfo() {
   const t = state.tracks;
   const tr = t.filter(x => x.lang === 'tr').length;
   if (state.provider === 'ost') {
-    $('lib-info').textContent = `${OST_LABEL} · ${t.length.toLocaleString('tr')} parça · ${ost.getSelectedGames().length} oyun`;
+    $('lib-info').textContent = [`${OST_LABEL} · ${t.length.toLocaleString('tr')} parça · ${ost.getSelectedGames().length} oyun`,
+      notes.pop].filter(Boolean).join(' · ');
     return;
   }
   const base = state.provider === 'demo'
@@ -669,7 +670,7 @@ async function pickPlayable() {
   for (let i = 0; i < 12; i++) {
     let track = state.queued;
     state.queued = null;
-    if (!track) track = picker.next(state.tracks, settings.era, langFilter(), tier());
+    if (!track) track = picker.next(state.tracks, settings.era, langFilter(), tier(), state.provider === 'ost');
     if (!track) return null;
     if (player() !== preview) return track;
     const loaded = await preview.load(track);
@@ -692,7 +693,7 @@ function enrich(track, match) {
 
 function queueNext() {
   if (player() !== preview) return;
-  const next = picker.next(state.tracks, settings.era, langFilter(), tier());
+  const next = picker.next(state.tracks, settings.era, langFilter(), tier(), state.provider === 'ost');
   if (!next) return;
   state.queued = next;
   preview.load(next);

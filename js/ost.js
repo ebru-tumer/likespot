@@ -51,7 +51,8 @@ export function cachedGameTracks(id) {
 
 export async function fetchGameTracks(game) {
   const cached = cachedGameTracks(game.id);
-  if (cached?.length) return cached;
+  // Eski önbellekte besteci yok; popülerlik araması için yeniden indirilir.
+  if (cached?.length && cached[0].composer !== undefined) return cached;
   const params = new URLSearchParams({ id: game.albums.join(','), entity: 'song', limit: '200', country: 'US' });
   const res = await fetch(`https://itunes.apple.com/lookup?${params}`);
   if (!res.ok) throw new Error(`${game.name} müzikleri alınamadı (${res.status}).`);
@@ -75,6 +76,8 @@ export async function fetchGameTracks(game) {
       duration: r.trackTimeMillis || 0,
       url: r.trackViewUrl || '',
       preview: r.previewUrl,
+      // Deezer'da parçalar oyunun değil bestecinin adıyla kayıtlı; popülerlik bununla aranır.
+      composer: r.artistName || '',
       lang: 'ost',
     });
   }
