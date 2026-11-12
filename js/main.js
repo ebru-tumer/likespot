@@ -444,7 +444,12 @@ function renderOstToggle() {
 }
 
 // Hesap gerekmez: seçili oyunların soundtrack'lerinden soru gelir. İlk girişte soru "Oyun" olur.
-async function startOst() {
+async function startOst({ resume = false } = {}) {
+  if (!ost.getSelectedGames().length) {
+    // Açılışta otomatik devam ederken takılı kalmasın diye varsayılanlara döner; elle başlatmada uyarır.
+    if (resume) ost.resetSelectedGames();
+    else throw new Error('En az bir oyun seçmelisiniz.');
+  }
   stopAudio();
   show('loading');
   $('loading-text').textContent = 'Oyun müzikleri yükleniyor…';
@@ -487,10 +492,6 @@ function renderOstGames(box) {
 async function toggleGame(game, checked, row) {
   const selected = ost.getSelectedGames().filter(id => id !== game.id);
   if (checked) selected.push(game.id);
-  if (!selected.length) {
-    row.querySelector('input').checked = true;
-    return showError('game-error', new Error('En az bir oyun seçili olmalı.'));
-  }
   $('game-error').hidden = true;
   try {
     if (checked) {
@@ -499,6 +500,13 @@ async function toggleGame(game, checked, row) {
       if (!tracks.length) throw new Error(`${game.name} müzikleri bulunamadı.`);
     }
     ost.setSelectedGames(selected);
+    if (!selected.length) {
+      // Seçim boş kalabilir; sadece yeni oyun başlatırken en az bir oyun gerekir.
+      stopAudio();
+      renderSources();
+      renderLibInfo();
+      return showError('game-error', new Error('Oyun seçili değil. Oyunu başlatmak için en az bir oyun seçmelisiniz.'));
+    }
     useTracks(await ost.loadSelectedTracks());
     newRound();
     retryFailedGames();
@@ -816,6 +824,9 @@ let roundId = 0;
 async function newRound() {
   const id = ++roundId;
   stopAudio();
+  if (state.provider === 'ost' && !ost.getSelectedGames().length) {
+    return showError('game-error', new Error('Oyun seçili değil. Oyunu başlatmak için en az bir oyun seçmelisiniz.'));
+  }
   $('game-error').hidden = true;
   const d = DIFFICULTIES[settings.difficulty];
   const qtype = state.provider === 'ost' ? 'title'
@@ -1315,7 +1326,7 @@ async function main() {
   try {
     if (await auth.handleRedirect()) localStorage.setItem(KEY_PROVIDER, 'spotify');
     const provider = localStorage.getItem(KEY_PROVIDER) || (auth.isLoggedIn() ? 'spotify' : '');
-    if (provider === 'ost') return await startOst();
+    if (provider === 'ost') return await startOst({ resume: true });
     if (provider === 'charts') return await startCharts();
     if (provider === 'both' && hasLibrary('spotify') && hasLibrary('youtube')) {
       return startGame(bothTracks(), 'both');

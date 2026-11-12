@@ -69,7 +69,9 @@ const ADDED_DEFAULTS = ['geometry-dash'];
 
 export function getSelectedGames() {
   const sel = read(KEY_SELECTION);
-  if (!Array.isArray(sel) || !sel.length) return DEFAULT_GAMES;
+  // Hiç seçilmemiş (ilk giriş) -> varsayılanlar; kullanıcı hepsini kaldırdıysa boş liste kalır.
+  if (!Array.isArray(sel)) return DEFAULT_GAMES;
+  if (!sel.length) return sel;
   const added = read('ls.ost.addedDefaults') || [];
   const missing = ADDED_DEFAULTS.filter(id => !added.includes(id));
   if (missing.length) {
@@ -82,7 +84,11 @@ export function getSelectedGames() {
 }
 
 export function setSelectedGames(ids) {
-  localStorage.setItem(KEY_SELECTION, JSON.stringify(ids.length ? ids : DEFAULT_GAMES));
+  localStorage.setItem(KEY_SELECTION, JSON.stringify(ids));
+}
+
+export function resetSelectedGames() {
+  localStorage.removeItem(KEY_SELECTION);
 }
 
 export function cachedGameTracks(id) {
