@@ -452,6 +452,26 @@ async function startOst() {
   const tracks = await ost.loadSelectedTracks();
   if (!tracks.length) throw new Error('Oyun müzikleri yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.');
   startGame(tracks, 'ost');
+  retryFailedGames();
+}
+
+// Bazı oyunlar yüklenemediyse uyarır ve arka planda tekrar dener; gelince tur bozulmadan eklenir.
+let ostRetryTimer;
+function retryFailedGames(attempt = 1) {
+  clearTimeout(ostRetryTimer);
+  if (!ost.failedGames.length || state.provider !== 'ost') return;
+  showError('game-error', new Error(`${ost.failedGames.join(', ')} müzikleri şu an yüklenemedi, birazdan tekrar denenecek. `
+    + 'O zamana kadar bu oyunların parçaları sorulmaz ve önerilerde çıkmaz.'));
+  if (attempt > 4) return;
+  ostRetryTimer = setTimeout(async () => {
+    if (state.provider !== 'ost') return;
+    const tracks = await ost.loadSelectedTracks();
+    if (state.provider !== 'ost') return;
+    if (tracks.length > state.tracks.length) useTracks(tracks);
+    else renderLibInfo();
+    if (ost.failedGames.length) retryFailedGames(attempt + 1);
+    else $('game-error').hidden = true;
+  }, 15000 * attempt);
 }
 
 function renderOstGames(box) {
@@ -481,6 +501,7 @@ async function toggleGame(game, checked, row) {
     ost.setSelectedGames(selected);
     useTracks(await ost.loadSelectedTracks());
     newRound();
+    retryFailedGames();
   } catch (err) {
     renderSources();
     showError('game-error', err);
@@ -640,8 +661,9 @@ function renderLibInfo() {
     return;
   }
   if (state.provider === 'ost') {
+    const failed = ost.failedGames.length ? `yüklenemedi: ${ost.failedGames.join(', ')}` : '';
     $('lib-info').textContent = [`${OST_LABEL} · ${t.length.toLocaleString('tr')} parça · ${ost.getSelectedGames().length} oyun`,
-      notes.pop].filter(Boolean).join(' · ');
+      failed, notes.pop].filter(Boolean).join(' · ');
     return;
   }
   const base = state.provider === 'demo'

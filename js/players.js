@@ -38,7 +38,8 @@ export class PreviewPlayer {
 
   static async search(term, country) {
     const params = new URLSearchParams({ term, entity: 'song', limit: '15', country });
-    const res = await fetch(`https://itunes.apple.com/search?${params}`);
+    // Önbelleğe alınmış başarısız (kota) cevaplar tekrar tekrar dönmesin.
+    const res = await fetch(`https://itunes.apple.com/search?${params}`, { cache: 'no-store' });
     if (!res.ok) return [];
     return (await res.json()).results || [];
   }

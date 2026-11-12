@@ -96,8 +96,21 @@ export async function fetchGameTracks(game) {
   const params = game.tracks
     ? new URLSearchParams({ id: game.tracks.join(','), country: 'US' })
     : new URLSearchParams({ id: game.albums.join(','), entity: 'song', limit: '200', country: 'US' });
-  const res = await fetch(`https://itunes.apple.com/lookup?${params}`);
-  if (!res.ok) throw new Error(`${game.name} müzikleri alınamadı (${res.status}).`);
+  // iTunes arka arkaya gelen isteklerde ara sıra cevap vermiyor; birkaç kez beklenip yeniden denenir.
+  let res;
+  for (const delay of [0, 1500, 4000]) {
+    if (delay) await new Promise(r => setTimeout(r, delay));
+    try {
+      // iTunes'un başarısız (kota) cevabı bir süre aynı adres için tekrar tekrar dönebiliyor;
+      // yeniden denemelerde adres değiştirilerek bu takılmış cevap atlanır.
+      const bust = delay ? `&_=${Date.now()}` : '';
+      res = await fetch(`https://itunes.apple.com/lookup?${params}${bust}`, { cache: 'no-store' });
+      if (res.ok) break;
+    } catch {
+      res = null;
+    }
+  }
+  if (!res?.ok) throw new Error(`${game.name} müzikleri alınamadı.`);
   const seen = new Set();
   const tracks = [];
   for (const r of (await res.json()).results || []) {
@@ -141,8 +154,22 @@ export function gameSuggestionIndex(normalize) {
 }
 
 // Seçili oyunların parçaları (indirilmemişse indirir).
+// Yüklenemeyen seçili oyunların adları (son yüklemede).
+export let failedGames = [];
+
+// Seçili oyunların parçaları (indirilmemişse indirir). İstekler sırayla atılır ki iTunes reddetmesin;
+// yüklenemeyen oyunlar failedGames'e yazılır, sessizce atlanmaz.
 export async function loadSelectedTracks() {
   const selected = GAMES.filter(g => getSelectedGames().includes(g.id));
-  const parts = await Promise.all(selected.map(g => fetchGameTracks(g).catch(() => [])));
-  return parts.flat();
+  const tracks = [];
+  const failed = [];
+  for (const g of selected) {
+    try {
+      tracks.push(...await fetchGameTracks(g));
+    } catch {
+      failed.push(g.name);
+    }
+  }
+  failedGames = failed;
+  return tracks;
 }
