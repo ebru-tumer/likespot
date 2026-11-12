@@ -55,7 +55,7 @@ export const GAMES = [
   },
 ];
 
-const DEFAULT_GAMES = ['hollow-knight', 'silksong', 'balatro', 'pvz', 'jetpack'];
+const DEFAULT_GAMES = ['hollow-knight', 'silksong', 'balatro', 'pvz', 'jetpack', 'geometry-dash'];
 
 const KEY_SELECTION = 'ls.ost.selection';
 const keyTracks = id => `ls.ost.${id}`;
@@ -64,9 +64,21 @@ function read(key) {
   try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
 }
 
+// Varsayılanlara sonradan eklenen oyunlar, kendi seçimini kaydetmiş olanlara da bir kez eklenir.
+const ADDED_DEFAULTS = ['geometry-dash'];
+
 export function getSelectedGames() {
   const sel = read(KEY_SELECTION);
-  return Array.isArray(sel) && sel.length ? sel : DEFAULT_GAMES;
+  if (!Array.isArray(sel) || !sel.length) return DEFAULT_GAMES;
+  const added = read('ls.ost.addedDefaults') || [];
+  const missing = ADDED_DEFAULTS.filter(id => !added.includes(id));
+  if (missing.length) {
+    const next = [...new Set([...sel, ...missing])];
+    localStorage.setItem(KEY_SELECTION, JSON.stringify(next));
+    localStorage.setItem('ls.ost.addedDefaults', JSON.stringify([...added, ...missing]));
+    return next;
+  }
+  return sel;
 }
 
 export function setSelectedGames(ids) {
