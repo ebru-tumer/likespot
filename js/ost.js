@@ -4,6 +4,8 @@
 import { cleanTitle } from './players.js';
 
 // albums: iTunes albüm (collection) kimlikleri.
+// tracks: albümü olmayan oyunlar için tek tek parça kimlikleri (bestecilerin resmi yayınları);
+// names: parçanın oyundaki adı farklıysa (ör. MDK'nın "Fingerbang"i oyunda "Fingerdash").
 export const GAMES = [
   { id: 'hollow-knight', name: 'Hollow Knight', albums: [1263341718, 1425627253], aliases: ['hk'] },
   { id: 'silksong', name: 'Hollow Knight: Silksong', albums: [1838949732], aliases: ['hks', 'silk song'] },
@@ -25,6 +27,32 @@ export const GAMES = [
   { id: 'portal2', name: 'Portal 2', albums: [1891392601] },
   { id: 'fruit-ninja', name: 'Fruit Ninja', albums: [1596233785] },
   { id: 'angry-birds', name: 'Angry Birds', albums: [1530256320] },
+  {
+    id: 'geometry-dash', name: 'Geometry Dash', aliases: ['gd'],
+    tracks: [
+      1276451230, // Stereo Madness — ForeverBound
+      695745058, // Back on Track — DJVI
+      715004621, // Dry Out — DJVI
+      808865837, // Base After Base — DJVI
+      795158067, // Can't Let Go — DJVI
+      966976377, // Jumper — Waterflame
+      525846513, // Time Machine — Waterflame
+      794598147, // Cycles — DJVI
+      1829740808, // xStep — DJVI
+      699354354, // Clutterfunk — Waterflame
+      6805992230, // Theory of Everything — dj-Nate
+      966976361, // Electroman Adventures — Waterflame
+      6805992252, // Clubstep — dj-Nate
+      6805992248, // Electrodynamix — dj-Nate
+      966977461, // Hexagon Force — Waterflame
+      966976364, // Blast Processing — Waterflame
+      6805992232, // Theory of Everything 2 — dj-Nate
+      1035817358, // Geometrical Dominator — Waterflame
+      1718898130, // Deadlocked — F-777
+      931500978, // Fingerbang (oyunda Fingerdash) — MDK
+    ],
+    names: { 931500978: 'Fingerdash', 699354354: 'Clutterfunk' },
+  },
 ];
 
 const DEFAULT_GAMES = ['hollow-knight', 'silksong', 'balatro', 'pvz', 'jetpack'];
@@ -53,14 +81,16 @@ export async function fetchGameTracks(game) {
   const cached = cachedGameTracks(game.id);
   // Eski önbellekte besteci yok; popülerlik araması için yeniden indirilir.
   if (cached?.length && cached[0].composer !== undefined) return cached;
-  const params = new URLSearchParams({ id: game.albums.join(','), entity: 'song', limit: '200', country: 'US' });
+  const params = game.tracks
+    ? new URLSearchParams({ id: game.tracks.join(','), country: 'US' })
+    : new URLSearchParams({ id: game.albums.join(','), entity: 'song', limit: '200', country: 'US' });
   const res = await fetch(`https://itunes.apple.com/lookup?${params}`);
   if (!res.ok) throw new Error(`${game.name} müzikleri alınamadı (${res.status}).`);
   const seen = new Set();
   const tracks = [];
   for (const r of (await res.json()).results || []) {
     if (r.wrapperType !== 'track' || !r.previewUrl) continue;
-    const name = cleanTitle(r.trackName);
+    const name = game.names?.[r.trackId] || cleanTitle(r.trackName);
     // Aynı parçanın farklı albümlerdeki tekrarı bir kez alınır.
     if (seen.has(name.toLowerCase())) continue;
     seen.add(name.toLowerCase());
